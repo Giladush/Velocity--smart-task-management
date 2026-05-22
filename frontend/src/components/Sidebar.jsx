@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-export default function Sidebar({ activeView, setActiveView, streak, onSendMessage, isThinking }) {
+export default function Sidebar({ activeView, setActiveView, streak, onSendMessage, isThinking, handleLogout }) {
   const [chatInput, setChatInput] = useState('');
 
   const handleChatSubmit = (e) => {
@@ -85,6 +85,20 @@ export default function Sidebar({ activeView, setActiveView, streak, onSendMessa
             />
           </form>
         </div>
+      </div>
+      {/* אזור תחתית הסיידבר - כפתור התנתקות */}
+      <div className="p-4 mt-auto border-t border-slate-100">
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-red-500 bg-white border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+            <polyline points="16 17 21 12 16 7"></polyline>
+            <line x1="21" y1="12" x2="9" y2="12"></line>
+          </svg>
+          התנתקות
+        </button>
       </div>
     </aside>
   );

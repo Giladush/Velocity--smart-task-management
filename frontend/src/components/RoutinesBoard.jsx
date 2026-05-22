@@ -99,7 +99,10 @@ export default function RoutinesBoard() {
     try {
       const response = await fetch('http://localhost:5000/api/routines', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('stride_token')}` // מושכים את תעודת הזהות מהזיכרון!
+      },
         body: JSON.stringify(routineData)
       });
       const addedRoutine = await response.json();

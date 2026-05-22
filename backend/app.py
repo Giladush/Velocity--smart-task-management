@@ -1,13 +1,20 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-from models import db, Task, Process, Routine
+from models import db, Task, Process, Routine, User
 from datetime import date, timedelta
 import os
 import json
 import google.generativeai as genai
 from dotenv import load_dotenv
+from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
+from datetime import timedelta
 
 app = Flask(__name__)
+# הגדרות JWT לאבטחה
+app.config['JWT_SECRET_KEY'] = 'super-secret-stride-key-change-in-prod'
+app.config['JWT_TOKEN_LOCATION'] = ['headers']  # אומר לשרת לחפש את הטוקן בכותרות הבקשה
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=30)
+jwt = JWTManager(app)
 CORS(app)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///velocity.db'
@@ -30,17 +37,57 @@ else:
 def health_check():
     return jsonify({"status": "Velocity Backend is running!", "db_connected": True}), 200
 
+
+@app.route('/api/register', methods=['POST'])
+def register():
+    data = request.get_json()
+    username = data.get('username')
+    email = data.get('email')
+    password = data.get('password')
+
+    # מוודאים שהמשתמש לא קיים כבר
+    if User.query.filter_by(username=username).first() or User.query.filter_by(email=email).first():
+        return jsonify({"error": "Username or email already exists"}), 400
+
+    # יוצרים יוזר חדש במסד הנתונים
+    new_user = User(username=username, email=email)
+    new_user.set_password(password)
+    db.session.add(new_user)
+    db.session.commit()
+
+    return jsonify({"message": "User registered successfully"}), 201
+
+
+@app.route('/api/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    email = data.get('email')
+    password = data.get('password')
+
+    user = User.query.filter_by(email=email).first()
+
+    # אם הסיסמה נכונה, מייצרים ומחזירים טוקן (תעודת מעבר)
+    if user and user.check_password(password):
+        access_token = create_access_token(identity=str(user.id))
+        return jsonify({"access_token": access_token, "username": user.username}), 200
+
+    return jsonify({"error": "Invalid credentials"}), 401
+
 # --------------------------------------------------------
 # ראוט 1: שליפת כל התהליכים והמשימות + הזרקה וירטואלית (GET)
 # --------------------------------------------------------
 @app.route('/api/data', methods=['GET'])
+@jwt_required()  # 1. חוסם גישה למי שאין לו טוקן בתוקף
 def get_all_data():
     try:
+        # 2. שליפת ה-ID של המשתמש המחובר מתוך הטוקן
+        current_user_id = int(get_jwt_identity()) 
+        
         today_date = date.today()
-        today_day_name = today_date.strftime('%a') # מחזיר 'Sun', 'Mon', 'Tue' וכו'
+        today_day_name = today_date.strftime('%a')
 
-        # 1. שליפת תהילים ומשימות השייכות אליהם
-        processes = Process.query.all()
+        # 3. שליפת תהליכים ומשימות - פילטר מפורש לפי user_id!
+        processes = Process.query.filter_by(user_id=current_user_id).all()
         processes_data = []
         for p in processes:
             p_tasks = []
@@ -49,7 +96,7 @@ def get_all_data():
                     "id": t.id,
                     "title": t.title,
                     "is_completed": t.is_completed,
-                    "status": "Done" if t.is_completed else "To Do", # קביעת סטטוס מפורש
+                    "status": "Done" if t.is_completed else "To Do",
                     "is_routine": False,
                     "due_date": t.due_date
                 })
@@ -60,27 +107,26 @@ def get_all_data():
                 "tasks": p_tasks
             })
         
-        # 2. שליפת משימות עצמאיות
-        standalone_tasks = Task.query.filter_by(process_id=None).all()
+        # 4. שליפת משימות עצמאיות - פילטר מפורש לפי user_id!
+        standalone_tasks = Task.query.filter_by(process_id=None, user_id=current_user_id).all()
         standalone_data = []
         for t in standalone_tasks:
             standalone_data.append({
                 "id": t.id,
                 "title": t.title,
                 "is_completed": t.is_completed,
-                "status": "Done" if t.is_completed else "To Do", # קביעת סטטוס מפורש
+                "status": "Done" if t.is_completed else "To Do",
                 "is_routine": False,
                 "due_date": t.due_date
             })
 
-       # 3. הזרקה וירטואלית של שגרות היום (רק אם חלות היום)
-        active_routines = Routine.query.filter_by(is_active=True).all()
-        today_str = today_date.strftime('%Y-%m-%d') # הופך את היום לטקסט
+        # 5. שליפת שגרות היום - פילטר מפורש לפי user_id!
+        active_routines = Routine.query.filter_by(is_active=True, user_id=current_user_id).all()
+        today_str = today_date.strftime('%Y-%m-%d')
         
         for routine in active_routines:
             if today_day_name in routine.frequency:
                 
-                # השוואה מאובטחת: המרה של תאריך ההשלמה לטקסט
                 is_done = False
                 if routine.last_completed_date:
                     if hasattr(routine.last_completed_date, 'strftime'):
@@ -100,7 +146,6 @@ def get_all_data():
                     "is_routine": True,
                     "streak": routine.streak if routine.streak is not None else 0,
                     "due_date": None
-
                 })
 
         return jsonify({
@@ -115,7 +160,10 @@ def get_all_data():
 # ראוט 2: יצירת משימה חדשה (POST)
 # --------------------------------------------------------
 @app.route('/api/tasks', methods=['POST'])
+@jwt_required()  # הגנה: דורש שהמשתמש יהיה מחובר
 def add_task():
+    current_user_id = int(get_jwt_identity())  # שולף את מזהה המשתמש מהטוקן
+    
     data = request.get_json()
     due_date = data.get('due_date')
     title = data.get('title')
@@ -123,7 +171,13 @@ def add_task():
     if not title:
         return jsonify({"error": "Task title is required"}), 400
 
-    new_task = Task(title=data['title'], process_id=data.get('process_id'), due_date=due_date) 
+    # כאן הקסם קורה: אנחנו מוסיפים את ה-user_id למשימה!
+    new_task = Task(
+        title=title, 
+        process_id=data.get('process_id'), 
+        due_date=due_date,
+        user_id=current_user_id
+    ) 
     
     db.session.add(new_task)
     db.session.commit()
@@ -168,28 +222,31 @@ def delete_task(task_id):
 # ראוט 5: סוכן ה-AI לפירוק משימות (Stride)
 # --------------------------------------------------------
 @app.route('/api/chat', methods=['POST'])
+@jwt_required()  # הגנה: הראוט דורש טוקן
 def chat_with_stride():
     try:
+        # שליפת ה-ID של המשתמש מהטוקן
+        current_user_id = int(get_jwt_identity())
+        
         data = request.get_json()
         user_message = data.get('message')
         
         if not user_message:
             return jsonify({"error": "No message provided"}), 400
 
-        # --- 1. הזרקת נתונים ---
+        # --- 1. הזרקת נתונים (מסונן לפי משתמש!) ---
         today_str = date.today().isoformat()
         
-        open_tasks_query = Task.query.filter_by(is_completed=False).all()
+        open_tasks_query = Task.query.filter_by(is_completed=False, user_id=current_user_id).all()
         open_tasks = [{"id": t.id, "title": t.title, "due_date": t.due_date} for t in open_tasks_query]
 
-        processes_query = Process.query.all()
+        processes_query = Process.query.filter_by(user_id=current_user_id).all()
         existing_processes = [{"id": p.id, "title": p.title} for p in processes_query]
 
-        # שליפת שגרות כדי שה-AI יכיר אותן ויוכל למחוק אותן
-        routines_query = Routine.query.all()
+        routines_query = Routine.query.filter_by(user_id=current_user_id).all()
         existing_routines = [{"id": r.id, "title": r.title} for r in routines_query]
 
-        # --- 2. הפרומפט המעודכן ---
+        # --- 2. הפרומפט ---
         prompt = f"""
         You are Stride AI, an expert task manager and proactive smart assistant.
         Today's date is: {today_str}.
@@ -211,7 +268,7 @@ def chat_with_stride():
         PAYLOAD INSTRUCTIONS:
         - if intent='create_process': (CRITICAL: Use this for multi-step goals, projects, "תוכנית", "תהליך") payload = {{"process_title": "...", "process_description": "...", "tasks": ["task 1", "task 2"]}}
         - if intent='create_task': payload = {{"title": "...", "due_date": "YYYY-MM-DD" or null}}
-        - if intent='create_routine': payload = {{"title": "..."}}
+        - if intent='create_routine': payload = {{"title": "...", "frequency": ["Sun", "Wed"]}} (CRITICAL: If specific days are mentioned, extract them to 'frequency' array using ONLY abbreviations: 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'. If no days mentioned, omit the 'frequency' key.)
         - if intent='delete_task': payload = {{"task_id": 123}} (find ID from open tasks)
         - if intent='delete_tasks': payload = {{"target_date": "YYYY-MM-DD" or "today" or "all"}}
         - if intent='delete_routine': payload = {{"routine_id": 123}} (find ID from Existing routines)
@@ -235,7 +292,7 @@ def chat_with_stride():
             generation_config=genai.GenerationConfig(response_mime_type="application/json")
         )
         
-        # --- שכבת ההגנה: טיפול ב-JSON עקשן ---
+        # --- שכבת ההגנה: טיפול ב-JSON ---
         result = json.loads(response.text)
         if isinstance(result, list): 
             result = result[0] if len(result) > 0 else {}
@@ -253,27 +310,39 @@ def chat_with_stride():
         ai_reply = result.get("reply", "הבנתי!")
         action = None
 
-        # --- 4. מנוע הביצוע ---
+        # --- 4. מנוע הביצוע (מעודכן עם user_id!) ---
         if intent == "create_process":
             new_process = Process(
                 title=payload.get("process_title", "תהליך חדש"),
-                description=payload.get("process_description", "")
+                description=payload.get("process_description", ""),
+                user_id=current_user_id
             )
             db.session.add(new_process)
             db.session.flush() 
             for t_title in payload.get("tasks", []):
-                db.session.add(Task(title=t_title, process_id=new_process.id))
+                db.session.add(Task(title=t_title, process_id=new_process.id, user_id=current_user_id))
             db.session.commit()
             action = {"type": "NAVIGATE", "payload": {"view": "processes", "process_id": new_process.id}}
 
         elif intent == "create_task":
-            new_task = Task(title=payload.get("title"), due_date=payload.get("due_date"))
+            new_task = Task(title=payload.get("title"), due_date=payload.get("due_date"), user_id=current_user_id)
             db.session.add(new_task)
             db.session.commit()
             action = {"type": "REFRESH_DATA"}
 
         elif intent == "create_routine":
-            new_routine = Routine(title=payload.get("title"))
+            new_routine = Routine(title=payload.get("title"), user_id=current_user_id)
+            
+            # בודקים אם ה-AI הצליח לחלץ ימים ספציפיים מההודעה שלך
+            extracted_frequency = payload.get("frequency")
+            
+            if extracted_frequency and isinstance(extracted_frequency, list) and len(extracted_frequency) > 0:
+                # אם ה-AI מצא ימים (למשל פילאטיס בראשון) - נשתמש בהם
+                new_routine.frequency = extracted_frequency
+            else:
+                # אם לא ביקשת ימים ספציפיים - נגדיר שזה יופיע כל יום
+                new_routine.frequency = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+                
             db.session.add(new_routine)
             db.session.commit()
             action = {"type": "REFRESH_DATA"}
@@ -281,34 +350,34 @@ def chat_with_stride():
         elif intent == "delete_task":
             task_id = payload.get("task_id")
             if task_id:
-                Task.query.filter_by(id=task_id).delete()
+                Task.query.filter_by(id=task_id, user_id=current_user_id).delete()
                 db.session.commit()
                 action = {"type": "REFRESH_DATA"}
 
         elif intent == "delete_tasks":
             target_date = payload.get("target_date")
             if target_date == "all":
-                Task.query.filter_by(is_completed=False).delete()
+                Task.query.filter_by(is_completed=False, user_id=current_user_id).delete()
             else:
                 actual_date = today_str if target_date == "today" else target_date
-                Task.query.filter_by(due_date=actual_date, is_completed=False).delete()
+                Task.query.filter_by(due_date=actual_date, is_completed=False, user_id=current_user_id).delete()
             db.session.commit()
             action = {"type": "REFRESH_DATA"}
 
         elif intent == "delete_routine":
             routine_id = payload.get("routine_id")
             if routine_id:
-                Routine.query.filter_by(id=routine_id).delete()
+                Routine.query.filter_by(id=routine_id, user_id=current_user_id).delete()
                 db.session.commit()
                 action = {"type": "REFRESH_DATA"}
 
         elif intent == "complete_tasks":
             target_date = payload.get("target_date")
             if target_date == "all":
-                Task.query.filter_by(is_completed=False).update({"is_completed": True})
+                Task.query.filter_by(is_completed=False, user_id=current_user_id).update({"is_completed": True})
             else:
                 actual_date = today_str if target_date == "today" else target_date
-                Task.query.filter_by(due_date=actual_date, is_completed=False).update({"is_completed": True})
+                Task.query.filter_by(due_date=actual_date, is_completed=False, user_id=current_user_id).update({"is_completed": True})
             db.session.commit()
             action = {"type": "REFRESH_DATA"}
 
@@ -343,12 +412,17 @@ def get_routines():
 
 # 2. יצירת שגרה חדשה
 @app.route('/api/routines', methods=['POST'])
+@jwt_required()  # 1. מוודא שהבקשה מגיעה ממשתמש מחובר
 def create_routine():
     try:
+        # 2. מושך את תעודת הזהות של המשתמש מהטוקן
+        current_user_id = int(get_jwt_identity())
+        
         data = request.json
         new_routine = Routine(
             title=data.get('title'),
-            icon=data.get('icon', '⚡')
+            icon=data.get('icon', '⚡'),
+            user_id=current_user_id # 3. הקסם: משייך את השגרה למשתמש!
         )
         if 'frequency' in data:
             new_routine.frequency = data['frequency']
@@ -406,6 +480,39 @@ def toggle_routine(routine_id):
             
         db.session.commit()
         return jsonify(routine.to_dict()), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/processes', methods=['POST'])
+@jwt_required()  # הגנה: דורש משתמש מחובר
+def create_process_manual():
+    try:
+        # שליפת תעודת הזהות של המשתמש מהטוקן
+        current_user_id = int(get_jwt_identity())
+        
+        data = request.json
+        title = data.get('title')
+        
+        if not title:
+            return jsonify({"error": "Process title is required"}), 400
+
+        # יצירת התהליך ושיוך למשתמש
+        new_process = Process(
+            title=title,
+            description=data.get('description', ''),
+            user_id=current_user_id
+        )
+        
+        db.session.add(new_process)
+        db.session.commit()
+        
+        return jsonify({
+            "id": new_process.id,
+            "title": new_process.title,
+            "description": new_process.description
+        }), 201
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500

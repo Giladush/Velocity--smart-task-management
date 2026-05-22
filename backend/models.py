@@ -1,15 +1,47 @@
+import json
+from datetime import date
 from flask_sqlalchemy import SQLAlchemy
+from werkzeug.security import generate_password_hash, check_password_hash
 
 db = SQLAlchemy()
 
+# ==========================================
+# 1. מודל המשתמש (Auth)
+# ==========================================
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password_hash = db.Column(db.String(256), nullable=False)
+    
+    # קשרים לשאר הטבלאות
+    tasks = db.relationship('Task', backref='owner', lazy=True, cascade="all, delete-orphan")
+    processes = db.relationship('Process', backref='owner', lazy=True, cascade="all, delete-orphan")
+    routines = db.relationship('Routine', backref='owner', lazy=True, cascade="all, delete-orphan")
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
+
+# ==========================================
+# 2. מודל התהליכים
+# ==========================================
 class Process(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(100), nullable=False)
     description = db.Column(db.String(255), nullable=True)
     
+    # שיוך למשתמש
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    
     # הקשר למשימות
     tasks = db.relationship('Task', backref='process', lazy=True, cascade="all, delete-orphan")
 
+# ==========================================
+# 3. מודל המשימות
+# ==========================================
 class Task(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(100), nullable=False)
@@ -17,12 +49,15 @@ class Task(db.Model):
     due_date = db.Column(db.String(50), nullable=True)
     is_completed = db.Column(db.Boolean, default=False)
     
-    # מפתח זר לתהליך (יכול להיות ריק אם זו משימה בודדת)
+    # מפתח זר לתהליך
     process_id = db.Column(db.Integer, db.ForeignKey('process.id'), nullable=True)
+    
+    # שיוך למשתמש
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
-    from datetime import date
-import json
-
+# ==========================================
+# 4. מודל השגרות
+# ==========================================
 class Routine(db.Model):
     __tablename__ = 'routines'
 
@@ -34,15 +69,16 @@ class Routine(db.Model):
     
     _frequency = db.Column(db.String(500), name='frequency', default='[]')
     last_completed_date = db.Column(db.Date, nullable=True)
+    
+    # שיוך למשתמש
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
     @property
     def frequency(self):
-        import json
         return json.loads(self._frequency) if self._frequency else []
 
     @frequency.setter
     def frequency(self, value):
-        import json
         self._frequency = json.dumps(value)
 
     @property
@@ -50,7 +86,6 @@ class Routine(db.Model):
         if not self.last_completed_date:
             return False
             
-        from datetime import date
         # הגנה: אם SQLite מחזיר מחרוזת במקום אובייקט Date
         if isinstance(self.last_completed_date, str):
             return self.last_completed_date.startswith(str(date.today()))

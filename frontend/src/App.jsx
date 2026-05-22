@@ -3,6 +3,7 @@ import Sidebar from './components/Sidebar';
 import KanbanBoard from './components/KanbanBoard';
 import ProcessBoard from './components/ProcessBoard';
 import RoutinesBoard from './components/RoutinesBoard';
+import Auth from './components/Auth';
 
 function App() {
   const [aiAdvice, setAiAdvice] = useState(null); // ישמור את הניתוח המפורט של היועץ
@@ -15,10 +16,16 @@ function App() {
   const [activeFilter, setActiveFilter] = useState('default');
   const [customDate, setCustomDate] = useState('');
   const [customDaysCount, setCustomDaysCount] = useState(0);
+  const [token, setToken] = useState(localStorage.getItem('stride_token') || null);
 
 const fetchData = async () => {
+  if (!token) return; // 1. אם אין טוקן, אין מה לנסות למשוך נתונים
   try {
-    const res = await fetch('http://localhost:5000/api/data');
+    const res = await fetch('http://localhost:5000/api/data', {
+      headers: {
+        'Authorization': `Bearer ${token}` // 2. מצרפים את הטוקן!
+      }
+    });
     if (!res.ok) throw new Error("Failed to fetch data");
     
     const data = await res.json();
@@ -42,16 +49,24 @@ const fetchData = async () => {
   }
 };
 
+const handleLogout = () => {
+    localStorage.removeItem('stride_token'); // 1. מוחקים את הטוקן מהזיכרון של הדפדפן
+    setToken(null); // 2. מאפסים את הסטייט כדי שהאפליקציה תציג מיד את מסך ההתחברות
+  };
+
   useEffect(() => { fetchData(); }, []);
 
  const handleAISend = async (userMessage) => {
   setIsThinking(true);
   try {
     const res = await fetch('http://localhost:5000/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: userMessage })
-    });
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` // <-- הוספנו את שורת הטוקן גם לפה
+        },
+        body: JSON.stringify({ message: userMessage })
+      });
     const data = await res.json();
     
     // הצגת תגובת הטקסט בצ'אט כרגיל
@@ -117,12 +132,14 @@ const fetchData = async () => {
   try {
     const res = await fetch('http://localhost:5000/api/tasks', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      // אנחנו משתמשים בפרמטרים שהפונקציה קיבלה:
-      body: JSON.stringify({ 
-        title: title, 
-        due_date: dueDate || null // שולח null אם לא נבחר תאריך
-      }) 
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}` // <--- הנה הכרטיס כניסה שלנו!
+      },
+      body: JSON.stringify({
+        title: title,
+        due_date: dueDate || null
+      })
     });
     
     if (res.ok) {
@@ -155,7 +172,10 @@ const fetchData = async () => {
       // כאן מטופלות רק משימות רגילות (שה-ID שלהן הוא מספר נקי)
       const res = await fetch(`http://localhost:5000/api/tasks/${task.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}` 
+      },
         body: JSON.stringify({ is_completed: true })
       });
       
@@ -213,7 +233,10 @@ const fetchData = async () => {
     // ככה המשימה תישאר ב-In Progress ולא תקפוץ חזרה ל-To Do בטעות
     fetch(`http://localhost:5000/api/tasks/${draggedTask.id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}` 
+    },
       body: JSON.stringify({ is_completed: isCompleted })
     })
     .catch(err => console.error("Error syncing task drag to server:", err));
@@ -229,13 +252,19 @@ const handleDeleteTask = async (taskId) => {
       // חילוץ ה-ID המספרי של השגרה
       const actualRoutineId = String(taskId).replace('routine_', '');
       const res = await fetch(`http://localhost:5000/api/routines/${actualRoutineId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}` // <-- הוספנו את הטוקן למחיקת שגרה
+        }
       });
       if (res.ok) fetchData();
     } else {
       // מחיקה של משימה רגילה
       const res = await fetch(`http://localhost:5000/api/tasks/${taskId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}` // <-- הוספנו את הטוקן למחיקת משימה
+        }
       });
       if (res.ok) fetchData();
     }
@@ -243,6 +272,10 @@ const handleDeleteTask = async (taskId) => {
     console.error("Error deleting task:", error);
   }
 };
+
+  if (!token) {
+    return <Auth setToken={setToken} />;
+  }
 
   return (
     <div className="flex h-screen bg-slate-50 text-slate-900 font-sans overflow-hidden">
@@ -252,6 +285,7 @@ const handleDeleteTask = async (taskId) => {
         streak={streak} 
         onSendMessage={handleAISend}
         isThinking={isThinking} 
+        handleLogout={handleLogout}
       />
       
      {activeView === 'tasks' ? (
