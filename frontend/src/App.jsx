@@ -4,6 +4,8 @@ import KanbanBoard from './components/KanbanBoard';
 import ProcessBoard from './components/ProcessBoard';
 import RoutinesBoard from './components/RoutinesBoard';
 import Auth from './components/Auth';
+import DailySummary from './components/DailySummary';
+import Analytics from './components/Analytics';
 
 function App() {
   const [aiAdvice, setAiAdvice] = useState(null); // ישמור את הניתוח המפורט של היועץ
@@ -17,6 +19,14 @@ function App() {
   const [customDate, setCustomDate] = useState('');
   const [customDaysCount, setCustomDaysCount] = useState(0);
   const [token, setToken] = useState(localStorage.getItem('stride_token') || null);
+  const [showSummary, setShowSummary] = useState(false);
+
+  useEffect(() => {
+    if (token && !sessionStorage.getItem('hasSeenSummary')) {
+      setShowSummary(true);
+      sessionStorage.setItem('hasSeenSummary', 'true');
+    }
+  }, [token]);
 
 const fetchData = async () => {
   if (!token) return; // 1. אם אין טוקן, אין מה לנסות למשוך נתונים
@@ -51,6 +61,7 @@ const fetchData = async () => {
 
 const handleLogout = () => {
     localStorage.removeItem('stride_token'); // 1. מוחקים את הטוקן מהזיכרון של הדפדפן
+    sessionStorage.removeItem('hasSeenSummary');
     setToken(null); // 2. מאפסים את הסטייט כדי שהאפליקציה תציג מיד את מסך ההתחברות
   };
 
@@ -279,27 +290,49 @@ const handleDeleteTask = async (taskId) => {
 
   return (
     <div className="flex h-screen bg-slate-50 text-slate-900 font-sans overflow-hidden">
+      
+      {/* 1. החלון הקופץ */}
+      {showSummary && (
+        <DailySummary 
+          closeModal={() => setShowSummary(false)} 
+          tasks={tasks} 
+          processes={processes} 
+        />
+      )}
+      
+      {/* 2. תפריט הצד */}
       <Sidebar 
         activeView={activeView} 
         setActiveView={setActiveView} 
         streak={streak} 
         onSendMessage={handleAISend}
         isThinking={isThinking} 
-        handleLogout={handleLogout}
+        handleLogout={handleLogout} 
+        onOpenSummary={() => setShowSummary(true)}
       />
-      
-     {activeView === 'tasks' ? (
+
+      {/* 3. אזור התוכן המרכזי - עוטף את כל המסכים */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        
+        {/* --- מסך אנליטיקה --- */}
+        {activeView === 'analytics' && (
+          <Analytics token={token} />
+        )}
+        
+        {/* --- מסך משימות (כולל AI ופילטרים) --- */}
+        {activeView === 'tasks' && (
           <div className="flex-1 flex flex-col overflow-hidden">
             
             {aiAdvice && (
-            <div className="bg-gradient-to-br from-indigo-50 to-purple-50 p-6 rounded-2xl border border-indigo-100 shadow-sm mb-6 animate-fade-in animate-duration-200" dir="rtl">
-              <div className="flex justify-between items-center mb-3">
-                <h3 className="font-bold text-indigo-900 text-lg flex items-center gap-2">✨ עצת הסוכן החכם</h3>
-                <button onClick={() => setAiAdvice(null)} className="text-slate-400 hover:text-slate-600 font-bold">✕</button>
+              <div className="bg-gradient-to-br from-indigo-50 to-purple-50 p-6 rounded-2xl border border-indigo-100 shadow-sm mb-6 mt-6 mx-8 animate-fade-in animate-duration-200" dir="rtl">
+                <div className="flex justify-between items-center mb-3">
+                  <h3 className="font-bold text-indigo-900 text-lg flex items-center gap-2">✨ עצת הסוכן החכם</h3>
+                  <button onClick={() => setAiAdvice(null)} className="text-slate-400 hover:text-slate-600 font-bold">✕</button>
+                </div>
+                <p className="text-slate-700 whitespace-pre-line text-sm leading-relaxed">{aiAdvice}</p>
               </div>
-              <p className="text-slate-700 whitespace-pre-line text-sm leading-relaxed">{aiAdvice}</p>
-            </div>
-          )}
+            )}
+
             {/* סרגל הפילטרים */}
             <div className="flex items-center gap-3 mt-6 mx-8 bg-white p-3 rounded-xl shadow-sm border border-slate-100 w-max" dir="rtl">
               <span className="text-sm font-semibold text-slate-500 ml-2">מיון לפי:</span>
@@ -356,12 +389,22 @@ const handleDeleteTask = async (taskId) => {
               customDaysCount={customDaysCount}
             />
           </div>
-      ) : activeView === 'processes' ? (
-        <ProcessBoard processes={processes}
-        selectedProcessId={selectedProcessId}  />
-      ) : (
-        <RoutinesBoard />
-      )}
+        )}
+
+        {/* --- מסך תהליכים --- */}
+        {activeView === 'processes' && (
+          <ProcessBoard 
+            processes={processes}
+            selectedProcessId={selectedProcessId}  
+          />
+        )}
+
+        {/* --- מסך שגרות --- */}
+        {activeView === 'routines' && (
+          <RoutinesBoard />
+        )}
+
+      </div>
     </div>
   );
 }

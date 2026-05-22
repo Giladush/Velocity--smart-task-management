@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-export default function Sidebar({ activeView, setActiveView, streak, onSendMessage, isThinking, handleLogout }) {
+export default function Sidebar({ activeView, setActiveView, streak, onSendMessage, isThinking, handleLogout, onOpenSummary }) {
   const [chatInput, setChatInput] = useState('');
 
   const handleChatSubmit = (e) => {
@@ -16,6 +16,30 @@ export default function Sidebar({ activeView, setActiveView, streak, onSendMessa
       <div className="p-6 border-b border-slate-100">
         <h1 className="text-3xl font-extrabold text-indigo-600 tracking-tight">Velocity</h1>
         <p className="text-sm text-slate-500 mt-1 font-medium">Task & Process Manager</p>
+      </div>
+
+      <div className="p-4 border-b border-slate-100 space-y-2">
+        {/* כפתור תמונת מצב יומית */}
+        <button
+          onClick={onOpenSummary}
+          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-50 text-indigo-700 rounded-xl hover:bg-indigo-100 hover:shadow-sm font-semibold transition-all border border-indigo-100/50"
+        >
+          <span className="text-lg">☀️</span>
+          Daily Summary
+        </button>
+
+        {/* כפתור למסך האנליטיקה */}
+        <button
+          onClick={() => setActiveView('analytics')}
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-medium transition-all ${
+            activeView === 'analytics'
+              ? 'bg-indigo-50 text-indigo-700 shadow-sm border border-indigo-100/50'
+              : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 border border-transparent'
+          }`}
+        >
+          <span className="text-xl">📈</span>
+          Analytics
+        </button>
       </div>
 
       {/* Navigation Tabs */}
@@ -46,9 +70,10 @@ export default function Sidebar({ activeView, setActiveView, streak, onSendMessa
         </button>
       </nav>
 
-      <div className="flex-1 p-4 flex flex-col gap-4 overflow-hidden">
+<div className="flex-1 p-4 flex flex-col gap-4 overflow-y-auto">
+        
         {/* Streak Area */}
-        <div className="bg-gradient-to-br from-indigo-50 to-white p-4 rounded-2xl border border-indigo-100 shadow-sm">
+        <div className="bg-gradient-to-br from-indigo-50 to-white p-4 rounded-2xl border border-indigo-100 shadow-sm shrink-0">
           <div className="flex items-center gap-3">
             <div className="text-2xl">🔥</div>
             <div>
@@ -59,7 +84,8 @@ export default function Sidebar({ activeView, setActiveView, streak, onSendMessa
         </div>
         
         {/* Stride AI Chat interface */}
-        <div className="flex-1 bg-slate-50 rounded-2xl border border-slate-200 flex flex-col overflow-hidden relative">
+        {/* הוספנו פה min-h-[250px] ו-shrink-0 כדי למנוע מעיכה */}
+        <div className="flex flex-col min-h-[280px] shrink-0 bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden relative">
           <div className="p-3 border-b border-slate-200 bg-white/50">
             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Stride AI Agent</p>
           </div>
@@ -70,7 +96,7 @@ export default function Sidebar({ activeView, setActiveView, streak, onSendMessa
              </p>
           </div>
 
-          <form onSubmit={handleChatSubmit} className="p-3 bg-white border-t border-slate-200">
+          <form onSubmit={handleChatSubmit} className="p-3 bg-white border-t border-slate-200 shrink-0">
             <input 
               type="text" 
               disabled={isThinking}
@@ -86,8 +112,9 @@ export default function Sidebar({ activeView, setActiveView, streak, onSendMessa
           </form>
         </div>
       </div>
+
       {/* אזור תחתית הסיידבר - כפתור התנתקות */}
-      <div className="p-4 mt-auto border-t border-slate-100">
+      <div className="p-4 mt-auto border-t border-slate-100 shrink-0">
         <button
           onClick={handleLogout}
           className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-red-500 bg-white border border-red-200 rounded-lg hover:bg-red-50 transition-colors"

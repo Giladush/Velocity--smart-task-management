@@ -1,13 +1,14 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from models import db, Task, Process, Routine, User
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 import os
 import json
 import google.generativeai as genai
 from dotenv import load_dotenv
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from datetime import timedelta
+from sqlalchemy import func
 
 app = Flask(__name__)
 # הגדרות JWT לאבטחה
@@ -72,6 +73,69 @@ def login():
         return jsonify({"access_token": access_token, "username": user.username}), 200
 
     return jsonify({"error": "Invalid credentials"}), 401
+
+
+@app.route('/api/analytics', methods=['GET'])
+@jwt_required()  # הגנה: דורש טוקן בתוקף כדי לגשת לנתונים האנליטיים
+def get_analytics():
+    try:
+        # שליפת ה-ID של המשתמש והמרתו למספר
+        current_user_id = int(get_jwt_identity()) 
+
+        # 1. חישוב התקדמות כללית (משימות שהושלמו לעומת סך כל המשימות)
+        total_tasks = Task.query.filter_by(user_id=current_user_id).count()
+
+        # 1. חישוב התקדמות כללית (משימות שהושלמו לעומת סך כל המשימות)
+        total_tasks = Task.query.filter_by(user_id=current_user_id).count()
+        completed_tasks = Task.query.filter_by(user_id=current_user_id, is_completed=True).count()
+        overall_progress = (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0
+
+        # 2. חישוב התקדמות לכל תהליך (Process) בנפרד
+        processes = Process.query.filter_by(user_id=current_user_id).all()
+        processes_data = []
+        
+        for p in processes:
+            p_total = Task.query.filter_by(process_id=p.id).count()
+            p_completed = Task.query.filter_by(process_id=p.id, is_completed=True).count()
+            p_progress = (p_completed / p_total * 100) if p_total > 0 else 0
+            
+            processes_data.append({
+                "id": p.id,
+                "title": p.title,
+                "progress": round(p_progress)
+            })
+
+        # 3. הכנת נתונים לגרף שבועי (כמה משימות הושלמו בכל יום ב-7 הימים האחרונים)
+        # אנחנו הולכים אחורה 7 ימים, וסופרים משימות שהושלמו ושתאריך היעד שלהן (due_date) היה באותו יום
+        today = datetime.now().date()
+        weekly_data = []
+        
+        for i in range(6, -1, -1):
+            target_date = today - timedelta(days=i)
+            target_date_str = target_date.strftime('%Y-%m-%d')
+            
+            # חיפוש משימות עבור היום הספציפי
+            daily_count = Task.query.filter(
+                Task.user_id == current_user_id,
+                Task.is_completed == True,
+                Task.due_date == target_date_str # אם יש לך שדה אחר כמו 'completed_at', תשני את זה פה
+            ).count()
+            
+            weekly_data.append({
+                "date": target_date.strftime('%d/%m'), # למשל 22/05
+                "day": target_date.strftime('%a'),     # למשל Sun, Mon
+                "completed": daily_count
+            })
+
+        return jsonify({
+            "overall_progress": round(overall_progress),
+            "processes_progress": processes_data,
+            "weekly_chart": weekly_data
+        }), 200
+
+    except Exception as e:
+        print(f"Analytics Error: {e}")
+        return jsonify({"error": "Failed to fetch analytics"}), 500
 
 # --------------------------------------------------------
 # ראוט 1: שליפת כל התהליכים והמשימות + הזרקה וירטואלית (GET)
@@ -311,6 +375,9 @@ def chat_with_stride():
         action = None
 
         # --- 4. מנוע הביצוע (מעודכן עם user_id!) ---
+        print("\n================= AI PAYLOAD =================")
+        print(payload)
+        print("==============================================\n")
         if intent == "create_process":
             new_process = Process(
                 title=payload.get("process_title", "תהליך חדש"),
@@ -319,8 +386,17 @@ def chat_with_stride():
             )
             db.session.add(new_process)
             db.session.flush() 
-            for t_title in payload.get("tasks", []):
-                db.session.add(Task(title=t_title, process_id=new_process.id, user_id=current_user_id))
+            
+            # --- הלולאה המתוקנת ---
+            tasks_list = payload.get("tasks", [])
+            for item in tasks_list:
+                # שולף את הטקסט גם אם ה-AI החזיר מילון וגם אם החזיר מחרוזת
+                t_title = item.get("title") if isinstance(item, dict) else item
+                
+                # שומר את המשימה רק אם באמת יש לה כותרת
+                if t_title:
+                    db.session.add(Task(title=str(t_title), process_id=new_process.id, user_id=current_user_id))
+            
             db.session.commit()
             action = {"type": "NAVIGATE", "payload": {"view": "processes", "process_id": new_process.id}}
 
