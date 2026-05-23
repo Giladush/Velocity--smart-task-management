@@ -54,6 +54,10 @@ const fetchData = async () => {
     // 🎯 הנה השורה המנצחת - שומרים את התהליכים!
     setProcesses(data.processes || []);
 
+    if (data.streak !== undefined) {
+        setStreak(data.streak);
+    }
+
   } catch (error) {
     console.error("Error fetching data:", error);
   }
@@ -89,7 +93,7 @@ const handleLogout = () => {
 
       switch (type) {
         
-        // 1. מיון משימות (עבור X ימים או תאריך ספציפי)
+        // 1. מיון משימות (עבור X ימים או תאריך ספציפי או רמת דחיפות)
         case 'SET_FILTER':
           if (payload.filter_value === 'next_X_days') {
             setActiveFilter('next_X_days');
@@ -97,11 +101,12 @@ const handleLogout = () => {
           } else if (payload.filter_value === 'custom') {
             setCustomDate(payload.custom_date);
             setActiveFilter('custom');
+          } else if (['high_urgency', 'normal_urgency', 'low_urgency'].includes(payload.filter_value)) {
+            setActiveFilter(payload.filter_value);
           } else {
-            setActiveFilter(payload.filter_value); // 'today', 'default'
+            setActiveFilter(payload.filter_value); // 'today', 'default', 'next7days'
           }
           break;
-
         // 2 + 3 + 5. רענון מידע (קורה אחרי שהבאקאנד ביצע יצירה/מחיקה/העברה ב-DB)
         case 'REFRESH_DATA':
           fetchData();
@@ -139,22 +144,23 @@ const handleLogout = () => {
     };
 
   // --- שאר הפונקציות נשארות זהות ---
-  const handleAddTask = async (title, dueDate) => {
+  const handleAddTask = async (title, dueDate, urgency) => {
   try {
     const res = await fetch('http://localhost:5000/api/tasks', {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}` // <--- הנה הכרטיס כניסה שלנו!
+        'Authorization': `Bearer ${token}` 
       },
       body: JSON.stringify({
         title: title,
-        due_date: dueDate || null
+        due_date: dueDate || null,
+        urgency: urgency || 'normal' // הוספנו את הדחיפות לכאן!
       })
     });
     
     if (res.ok) {
-      fetchData(); // מרענן את הלוח עם המשימה החדשה
+      fetchData(); 
     }
   } catch (error) {
     console.error("Error creating task:", error);
@@ -223,7 +229,7 @@ const handleLogout = () => {
   ));
 
   // עדכון רצף כללי של האפליקציה (אם קיים)
-  if (newStatus === 'Done' && oldStatus !== 'Done') setStreak(prev => prev + 1);
+
 
   // --- פיצול לוגי מול השרת ---
   const isRoutine = draggedTask.is_routine || String(draggableId).includes('routine_');
@@ -362,6 +368,29 @@ const handleDeleteTask = async (taskId) => {
                 7 ימים קרובים
               </button>
 
+              {/* כפתורי סינון דחיפות */}
+              <div className="flex items-center gap-1 border-r pr-2 mr-2 border-slate-200">
+                  <span className="text-xs font-medium text-slate-400 ml-1">דחיפות:</span>
+                  <button 
+                    onClick={() => setActiveFilter('high_urgency')}
+                    className={`px-2 py-1 rounded text-xs transition-colors ${activeFilter === 'high_urgency' ? 'bg-red-100 text-red-700 font-bold border border-red-200' : 'text-slate-500 hover:bg-slate-50 border border-transparent'}`}
+                  >
+                    🔴 גבוהה
+                  </button>
+                  <button 
+                    onClick={() => setActiveFilter('normal_urgency')}
+                    className={`px-2 py-1 rounded text-xs transition-colors ${activeFilter === 'normal_urgency' ? 'bg-emerald-100 text-emerald-700 font-bold border border-emerald-200' : 'text-slate-500 hover:bg-slate-50 border border-transparent'}`}
+                  >
+                    🟡 רגילה
+                  </button>
+                  <button 
+                    onClick={() => setActiveFilter('low_urgency')}
+                    className={`px-2 py-1 rounded text-xs transition-colors ${activeFilter === 'low_urgency' ? 'bg-green-100 text-green-700 font-bold border border-green-200' : 'text-slate-500 hover:bg-slate-50 border border-transparent'}`}
+                  >
+                    🟢 נמוכה
+                  </button>
+              </div>
+
               <div className="flex items-center gap-2 border-r pr-2 mr-2 border-slate-200">
                 <button 
                   onClick={() => setActiveFilter('custom')}
@@ -399,7 +428,8 @@ const handleDeleteTask = async (taskId) => {
         {activeView === 'processes' && (
           <ProcessBoard 
             processes={processes}
-            selectedProcessId={selectedProcessId}  
+            selectedProcessId={selectedProcessId}
+            onUpdateTask={handleUpdateTask}  
           />
         )}
 

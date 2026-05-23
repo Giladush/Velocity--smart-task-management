@@ -1,6 +1,6 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-from models import db, Task, Process, Routine, User
+from models import db, Task, Process, Routine, User, CompletionLog
 from datetime import date, timedelta, datetime
 import os
 import json
@@ -84,9 +84,6 @@ def get_analytics():
 
         # 1. חישוב התקדמות כללית (משימות שהושלמו לעומת סך כל המשימות)
         total_tasks = Task.query.filter_by(user_id=current_user_id).count()
-
-        # 1. חישוב התקדמות כללית (משימות שהושלמו לעומת סך כל המשימות)
-        total_tasks = Task.query.filter_by(user_id=current_user_id).count()
         completed_tasks = Task.query.filter_by(user_id=current_user_id, is_completed=True).count()
         overall_progress = (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0
 
@@ -105,25 +102,22 @@ def get_analytics():
                 "progress": round(p_progress)
             })
 
-        # 3. הכנת נתונים לגרף שבועי (כמה משימות הושלמו בכל יום ב-7 הימים האחרונים)
-        # אנחנו הולכים אחורה 7 ימים, וסופרים משימות שהושלמו ושתאריך היעד שלהן (due_date) היה באותו יום
+        # 3. הכנת נתונים לגרף שבועי מתוך יומן ההשלמות המאובטח (CompletionLog)
         today = datetime.now().date()
         weekly_data = []
         
         for i in range(6, -1, -1):
             target_date = today - timedelta(days=i)
-            target_date_str = target_date.strftime('%Y-%m-%d')
             
-            # חיפוש משימות עבור היום הספציפי
-            daily_count = Task.query.filter(
-                Task.user_id == current_user_id,
-                Task.is_completed == True,
-                Task.due_date == target_date_str # אם יש לך שדה אחר כמו 'completed_at', תשני את זה פה
+            # 🔥 התיקון: במקום לחפש לפי due_date במשימות, סופרים רשומות ביומן ההשלמות לאותו יום
+            daily_count = CompletionLog.query.filter_by(
+                user_id=current_user_id,
+                completed_date=target_date
             ).count()
             
             weekly_data.append({
-                "date": target_date.strftime('%d/%m'), # למשל 22/05
-                "day": target_date.strftime('%a'),     # למשל Sun, Mon
+                "date": target_date.strftime('%d/%m'), # למשל 23/05
+                "day": target_date.strftime('%a'),     # למשל Sat, Sun
                 "completed": daily_count
             })
 
@@ -136,13 +130,14 @@ def get_analytics():
     except Exception as e:
         print(f"Analytics Error: {e}")
         return jsonify({"error": "Failed to fetch analytics"}), 500
-
 # --------------------------------------------------------
 # ראוט 1: שליפת כל התהליכים והמשימות + הזרקה וירטואלית (GET)
 # --------------------------------------------------------
 @app.route('/api/data', methods=['GET'])
 @jwt_required()  # 1. חוסם גישה למי שאין לו טוקן בתוקף
 def get_all_data():
+
+    calculated_streak = 0
     try:
         # 2. שליפת ה-ID של המשתמש המחובר מתוך הטוקן
         current_user_id = int(get_jwt_identity()) 
@@ -163,7 +158,8 @@ def get_all_data():
                     "status": "Done" if t.is_completed else "To Do",
                     "is_routine": False,
                     "due_date": t.due_date,
-                    "created_at": t.created_at.strftime('%Y-%m-%dT%H:%M:%S') if t.created_at else None
+                    "created_at": t.created_at.strftime('%Y-%m-%dT%H:%M:%S') if t.created_at else None,
+                    "urgency": t.urgency or 'normal'
                 })
             processes_data.append({
                 "id": p.id,
@@ -183,7 +179,8 @@ def get_all_data():
                 "status": "Done" if t.is_completed else "To Do",
                 "is_routine": False,
                 "due_date": t.due_date,
-                "created_at": t.created_at.strftime('%Y-%m-%dT%H:%M:%S') if t.created_at else None
+                "created_at": t.created_at.strftime('%Y-%m-%dT%H:%M:%S') if t.created_at else None,
+                "urgency": t.urgency or 'normal'
             })
 
         # 5. שליפת שגרות היום - פילטר מפורש לפי user_id!
@@ -214,9 +211,32 @@ def get_all_data():
                     "due_date": None
                 })
 
+                # === 3. חישוב סטריק חכם מתוך יומן ההשלמות ===
+                logs = CompletionLog.query.filter_by(user_id=current_user_id).all()
+                
+                # המרה בטוחה למחרוזת כדי למנוע בעיות תאימות של SQLite
+                unique_dates = {str(log.completed_date)[:10] for log in logs if log.completed_date}
+                
+                calculated_streak = 0
+                today = datetime.now().date()
+                yesterday = today - timedelta(days=1)
+                
+                # הופכים גם את תאריכי הבדיקה למחרוזות
+                today_str = str(today)
+                check_date_str = str(yesterday)
+                
+                if today_str in unique_dates:
+                    calculated_streak += 1
+                    
+                check_date = yesterday
+                while str(check_date) in unique_dates:
+                    calculated_streak += 1
+                    check_date -= timedelta(days=1)
+
         return jsonify({
             "processes": processes_data,
-            "standalone_tasks": standalone_data
+            "standalone_tasks": standalone_data,
+            "streak": calculated_streak
         }), 200
 
     except Exception as e:
@@ -234,15 +254,19 @@ def add_task():
     due_date = data.get('due_date')
     title = data.get('title')
     
+    # 👇 1. חולצים את הדחיפות (ואם הריאקט לא שלח, שמים 'normal' כברירת מחדל)
+    urgency = data.get('urgency', 'normal') 
+    
     if not title:
         return jsonify({"error": "Task title is required"}), 400
 
-    # כאן הקסם קורה: אנחנו מוסיפים את ה-user_id למשימה!
+    # כאן הקסם קורה: אנחנו מוסיפים את ה-user_id ואת ה-urgency למשימה!
     new_task = Task(
         title=title, 
         process_id=data.get('process_id'), 
         due_date=due_date,
-        user_id=current_user_id
+        user_id=current_user_id,
+        urgency=urgency  # 👇 2. מכניסים את הנתון למסד הנתונים
     ) 
     
     db.session.add(new_task)
@@ -251,7 +275,8 @@ def add_task():
     return jsonify({
         "id": new_task.id,
         "title": new_task.title,
-        "is_completed": new_task.is_completed
+        "is_completed": new_task.is_completed,
+        "urgency": new_task.urgency  # 👇 3. מחזירים את זה לריאקט שיידע שזה נשמר
     }), 201
 
 # --------------------------------------------------------
@@ -265,18 +290,57 @@ def update_task(task_id):
         
     data = request.get_json()
     
-    # 1. עדכון סטטוס (מה שהיה לך)
+    # 1. עדכון סטטוס, יומן השלמות וסטריק שגרות
     if 'is_completed' in data:
-        task.is_completed = data['is_completed']
+        new_status = data['is_completed']
+        task.is_completed = new_status
         
-    # 2. התיקון החדש: עדכון הכותרת!
+        today_date = datetime.now().date()
+        
+        # --- א. ניהול יומן השלמות כללי (לסטריק הראשי) ---
+        if new_status == True:
+            existing_log = CompletionLog.query.filter_by(task_id=task.id, completed_date=today_date).first()
+            if not existing_log:
+                new_log = CompletionLog(user_id=task.user_id, task_id=task.id, completed_date=today_date)
+                db.session.add(new_log)
+        else:
+            log_to_delete = CompletionLog.query.filter_by(task_id=task.id, completed_date=today_date).first()
+            if log_to_delete:
+                db.session.delete(log_to_delete)
+                
+        # --- ב. טיפול בסטריק של שגרות ---
+        routine = Routine.query.filter_by(title=task.title, user_id=task.user_id).first()
+        
+        if routine:
+            # המרה בטוחה של התאריך (למקרה ש-SQLite מחזיר מחרוזת)
+            last_completed = routine.last_completed_date
+            if isinstance(last_completed, str) and last_completed:
+                last_completed = datetime.strptime(last_completed[:10], '%Y-%m-%d').date()
+
+            yesterday_date = today_date - timedelta(days=1)
+
+            if new_status == True:
+                # אם סימנו כ-Done והשגרה לא עודכנה כבר היום
+                if last_completed != today_date:
+                    routine.streak = (routine.streak or 0) + 1
+                    routine.last_completed_date = today_date
+            else:
+                # מניעת רמאות בשגרות: אם המשתמש החזיר ל-ToDo באותו יום
+                if last_completed == today_date:
+                    routine.streak = max(0, (routine.streak or 0) - 1)
+                    routine.last_completed_date = yesterday_date
+            
+    # 2. עדכון שם המשימה
     if 'title' in data:
         task.title = data['title']
         
     db.session.commit()
-    # הוספתי כאן את הכותרת לתשובה כדי שנוכל לראות אותה חוזרת
-    return jsonify({"message": "Task updated", "is_completed": task.is_completed, "title": task.title}), 200
-
+    
+    return jsonify({
+        "message": "Task updated", 
+        "is_completed": task.is_completed, 
+        "title": task.title
+    }), 200
 # --------------------------------------------------------
 # ראוט 4: מחיקת משימה (DELETE)
 # --------------------------------------------------------

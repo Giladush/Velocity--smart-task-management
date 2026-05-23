@@ -50,12 +50,19 @@ class Task(db.Model):
     due_date = db.Column(db.String(50), nullable=True)
     is_completed = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    urgency = db.Column(db.String(20), default='normal')
     
     # מפתח זר לתהליך
     process_id = db.Column(db.Integer, db.ForeignKey('process.id'), nullable=True)
     
     # שיוך למשתמש
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+
+class CompletionLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, nullable=False)
+    task_id = db.Column(db.Integer, nullable=False)
+    completed_date = db.Column(db.Date, default=datetime.utcnow().date)
 
 # ==========================================
 # 4. מודל השגרות

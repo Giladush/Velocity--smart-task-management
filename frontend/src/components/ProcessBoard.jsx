@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-export default function ProcessBoard({ processes, selectedProcessId }) {
+export default function ProcessBoard({ processes, selectedProcessId, onUpdateTask }) {
   const [expandedId, setExpandedId] = useState(null);
   const processRefs = useRef({});
 
@@ -87,30 +87,42 @@ export default function ProcessBoard({ processes, selectedProcessId }) {
 
                 {/* רשימת המשימות - מופיעה רק אם התהליך פתוח */}
                 {isExpanded && (
-                  <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 animate-fade-in mt-4" onClick={(e) => e.stopPropagation()}>
-                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Action Items</h4>
-                    <ul className="space-y-2">
-                      {p.tasks?.map(task => (
-                        <li key={task.id} className="flex items-start gap-3">
-                          <div className={`mt-0.5 w-4 h-4 rounded-full border-2 flex-shrink-0 ${
-                            task.is_completed 
-                              ? 'bg-emerald-400 border-emerald-400' 
-                              : 'border-slate-300 bg-white'
-                          }`}>
-                            {task.is_completed && (
-                              <svg className="w-3 h-3 text-white mx-auto mt-px" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                              </svg>
-                            )}
+                  <div className="bg-slate-50 rounded-xl p-6 border border-slate-100 animate-fade-in mt-4" onClick={(e) => e.stopPropagation()}>
+                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-6 text-center">מסלול התקדמות</h4>
+                    
+                    {/* המסלול החדש בסגנון דואולינגו */}
+                    <div className="relative flex flex-col items-center z-0" dir="rtl">
+                      {/* הקו האחורי שמחבר בין כל השלבים */}
+                      <div className="absolute top-4 bottom-8 w-3 bg-slate-200 rounded-full -z-10"></div>
+
+                      {p.tasks?.map((task, index) => {
+                        const isCompleted = task.is_completed;
+                        
+                        return (
+                          <div 
+                            key={task.id} 
+                            className="relative flex flex-col items-center mb-8 cursor-pointer group"
+                            onClick={() => onUpdateTask({ ...task, is_completed: !isCompleted })} // הופך את הסטטוס בלחיצה
+                          >
+                            {/* כפתור עגול תלת-ממדי */}
+                            <div className={`w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold shadow-sm border-b-4 active:border-b-0 active:translate-y-1 transition-all ${
+                              isCompleted
+                                ? 'bg-emerald-400 border-emerald-500 text-white scale-110' // עיצוב משימה שהושלמה
+                                : 'bg-white border-slate-200 text-slate-400 group-hover:bg-slate-50' // עיצוב משימה פתוחה
+                            }`}>
+                              {isCompleted ? '✓' : index + 1}
+                            </div>
+                            
+                            {/* כותרת המשימה מתחת לכפתור */}
+                            <span className={`mt-3 text-sm font-bold px-4 py-1.5 rounded-full shadow-sm border ${
+                              isCompleted ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-slate-600 bg-white border-slate-200'
+                            }`}>
+                              {task.title}
+                            </span>
                           </div>
-                          <span className={`text-sm font-medium ${
-                            task.is_completed ? 'text-slate-400 line-through' : 'text-slate-700'
-                          }`}>
-                            {task.title}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </div>

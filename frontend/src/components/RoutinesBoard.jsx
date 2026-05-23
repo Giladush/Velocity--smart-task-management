@@ -101,16 +101,21 @@ export default function RoutinesBoard() {
         method: 'POST',
         headers: { 
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('stride_token')}` // מושכים את תעודת הזהות מהזיכרון!
+        'Authorization': `Bearer ${localStorage.getItem('stride_token')}` 
       },
         body: JSON.stringify(routineData)
       });
-      const addedRoutine = await response.json();
-      setRoutines([...routines, addedRoutine]);
+      
+      // אין צורך יותר לשמור את addedRoutine או לקרוא ל-setRoutines
+      
       setNewTitle('');
       setNewIcon('⚡');
       setSelectedDays(['Mon', 'Tue', 'Wed', 'Thu', 'Fri']);
       setIsAdding(false);
+      
+      // השורה החשובה: הוספנו await לפני ה-fetchData
+      await fetchData(); 
+      
     } catch (error) {
       console.error("Error creating routine:", error);
     }
@@ -205,18 +210,9 @@ export default function RoutinesBoard() {
               >
                 {/* אזור לחיץ לסימון V (תופס את רוב הכרטיסייה) */}
                 <div 
-                  onClick={() => toggleRoutine(routine.id)}
-                  className="flex flex-1 items-center gap-5 cursor-pointer min-w-0"
+                  className="flex flex-1 items-center gap-5 min-w-0"
                 >
-                  <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
-                    routine.completedToday ? 'bg-indigo-500 border-indigo-500' : 'border-slate-300 bg-slate-50'
-                  }`}>
-                    {routine.completedToday && (
-                      <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                      </svg>
-                    )}
-                  </div>
+                
 
                   <div className="flex-1 min-w-0 mr-2">
                     <p className={`text-lg font-bold truncate ${routine.completedToday ? 'text-indigo-900' : 'text-slate-700'}`}>

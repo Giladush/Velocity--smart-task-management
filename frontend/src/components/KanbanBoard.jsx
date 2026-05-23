@@ -7,6 +7,7 @@ export default function KanbanBoard({ tasks, onAddTask, onUpdateTask, onDeleteTa
   const columns = ['To Do', 'In Progress', 'Done'];
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [editTitle, setEditTitle] = useState("");
+  const [newTaskUrgency, setNewTaskUrgency] = useState('normal');
 
   // === 2. פה אנחנו שמות את פונקציות העריכה ===
   const handleEditStart = (task) => {
@@ -46,12 +47,12 @@ export default function KanbanBoard({ tasks, onAddTask, onUpdateTask, onDeleteTa
   e.preventDefault();
   if (!newTaskTitle.trim()) return;
   
-  // שולחים לפונקציה ב-App גם את הכותרת וגם את התאריך
-  onAddTask(newTaskTitle, newTaskDeadline); 
+  // מעבירים עכשיו 3 פרמטרים
+  onAddTask(newTaskTitle, newTaskDeadline, newTaskUrgency); 
   
-  // איפוס השדות אחרי היצירה
   setNewTaskTitle('');
   setNewTaskDeadline('');
+  setNewTaskUrgency('normal'); // איפוס חזרה לרגיל
 };
 
   return (
@@ -60,23 +61,35 @@ export default function KanbanBoard({ tasks, onAddTask, onUpdateTask, onDeleteTa
         <h2 className="text-xl font-bold text-slate-800">My Board</h2>
         
         <form onSubmit={handleSubmit} className="flex gap-2">
-          <input 
-            type="text" 
-            placeholder="What needs to be done?" 
-            className="px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 w-64 shadow-sm"
-            value={newTaskTitle}
-            onChange={(e) => setNewTaskTitle(e.target.value)}
-          />
-          <input 
+        <input 
+          type="text" 
+          placeholder="What needs to be done?" 
+          className="px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 w-64 shadow-sm"
+          value={newTaskTitle}
+          onChange={(e) => setNewTaskTitle(e.target.value)}
+        />
+        <input 
           type="date" 
           value={newTaskDeadline}
           onChange={(e) => setNewTaskDeadline(e.target.value)}
           className="border rounded px-3 py-2 text-sm text-slate-600 outline-none focus:ring-2 focus:ring-indigo-100"
         />
-          <button type="submit" className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg shadow-sm">
-            + Add Task
-          </button>
-        </form>
+        
+        {/* 👇 התפריט החדש של רמת הדחיפות 👇 */}
+        <select
+          value={newTaskUrgency}
+          onChange={(e) => setNewTaskUrgency(e.target.value)}
+          className="border rounded px-3 py-2 text-sm text-slate-600 outline-none focus:ring-2 focus:ring-indigo-100 bg-white"
+        >
+          <option value="low">Low 🟢</option>
+          <option value="normal">Normal 🟡</option>
+          <option value="high">High 🔴</option>
+        </select>
+
+        <button type="submit" className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg shadow-sm">
+          + Add Task
+        </button>
+      </form>
       </header>
       
       <div className="flex-1 p-8 overflow-x-auto">
@@ -128,6 +141,33 @@ export default function KanbanBoard({ tasks, onAddTask, onUpdateTask, onDeleteTa
             const bIsCustom = b.due_date === customDate;
             if (aIsCustom && !bIsCustom) return -1;
             if (!aIsCustom && bIsCustom) return 1;
+          }
+
+          else if (activeFilter === 'custom' && customDate) {
+            const aIsCustom = a.due_date === customDate;
+            const bIsCustom = b.due_date === customDate;
+            if (aIsCustom && !bIsCustom) return -1;
+            if (!aIsCustom && bIsCustom) return 1;
+          }
+
+          // 👇 --- הנה הוספת פילטר הדחיפות שלנו! --- 👇
+          else if (activeFilter === 'high_urgency') {
+            const aIsHigh = a.urgency === 'high';
+            const bIsHigh = b.urgency === 'high';
+            if (aIsHigh && !bIsHigh) return -1;
+            if (!aIsHigh && bIsHigh) return 1;
+          }
+          else if (activeFilter === 'normal_urgency') {
+            const aIsNormal = a.urgency === 'normal' || !a.urgency;
+            const bIsNormal = b.urgency === 'normal' || !b.urgency;
+            if (aIsNormal && !bIsNormal) return -1;
+            if (!aIsNormal && bIsNormal) return 1;
+          }
+          else if (activeFilter === 'low_urgency') {
+            const aIsLow = a.urgency === 'low';
+            const bIsLow = b.urgency === 'low';
+            if (aIsLow && !bIsLow) return -1;
+            if (!aIsLow && bIsLow) return 1;
           }
 
           // עדיפות שנייה (תקף רק לטור ה-To Do): שגרות קופצות למעלה
@@ -227,6 +267,15 @@ export default function KanbanBoard({ tasks, onAddTask, onUpdateTask, onDeleteTa
                               {task.is_routine && task.streak !== undefined && (
                                 <span className="text-xs text-amber-600 font-medium block mt-1">
                                   🔥 רצף נוכחי: {task.streak}
+                                </span>
+                              )}
+
+                              {task.urgency && task.urgency !== 'normal' && (
+                                <span className={`inline-block mt-2 text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wide shadow-sm border ${
+                                  task.urgency === 'high' ? 'bg-red-50 text-red-600 border-red-100' : 
+                                  'bg-emerald-50 text-emerald-600 border-emerald-100'
+                                }`}>
+                                  {task.urgency === 'high' ? '🔴 High' : '🟢 Low'}
                                 </span>
                               )}
 
