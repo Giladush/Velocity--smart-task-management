@@ -187,7 +187,11 @@ const handleLogout = () => {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}` 
       },
-        body: JSON.stringify({ is_completed: true })
+        // 👇 --- התיקון שלנו נמצא כאן! במקום true קבוע, שולחים את הנתונים האמיתיים --- 👇
+        body: JSON.stringify({ 
+          is_completed: task.is_completed, // מקבל את הסטטוס מהמשימה
+          title: task.title                // שולח את השם (החדש או הישן)
+        })
       });
       
       if (res.ok) {

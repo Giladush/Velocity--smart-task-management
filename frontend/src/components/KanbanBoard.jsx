@@ -5,6 +5,42 @@ export default function KanbanBoard({ tasks, onAddTask, onUpdateTask, onDeleteTa
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDeadline, setNewTaskDeadline] = useState(''); // הוספת הסטייט לתאריך
   const columns = ['To Do', 'In Progress', 'Done'];
+  const [editingTaskId, setEditingTaskId] = useState(null);
+  const [editTitle, setEditTitle] = useState("");
+
+  // === 2. פה אנחנו שמות את פונקציות העריכה ===
+  const handleEditStart = (task) => {
+    setEditingTaskId(task.id);
+    setEditTitle(task.title);
+  };
+
+  const handleEditSave = (taskId) => {
+    if (editingTaskId !== taskId) return;
+    if (!editTitle.trim()) {
+      setEditingTaskId(null);
+      return;
+    }
+    
+    fetch(`http://localhost:5000/api/tasks/${taskId}`, {
+      method: 'PUT',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}` // הערה: ודאי שככה את מושכת את הטוקן אצלך
+      },
+      body: JSON.stringify({ title: editTitle })
+    })
+    .then(res => {
+      if (res.ok) {
+        // בגלל שהלוח לא מנהל את ה-tasks (הוא מקבל אותם כ-prop), אנחנו צריכות לעדכן דרך האבא או לרענן
+        // הדרך הכי נכונה כאן היא להשתמש ב-onUpdateTask או לעשות פשוט רענון לנתונים:
+       // מוצאים את המשימה המקורית כדי לא למחוק לה נתונים אחרים
+        const originalTask = tasks.find(t => t.id === taskId);
+        onUpdateTask({ ...originalTask, title: editTitle }); // או כל דרך שבה האפליקציה שלך מרעננת
+        setEditingTaskId(null);
+      }
+    })
+    .catch(err => console.error("Error updating task:", err));
+  };
 
   const handleSubmit = (e) => {
   e.preventDefault();
@@ -130,38 +166,89 @@ export default function KanbanBoard({ tasks, onAddTask, onUpdateTask, onDeleteTa
                               ref={provided.innerRef}
                               {...provided.draggableProps}
                               {...provided.dragHandleProps}
-                            className={`relative bg-white p-5 rounded-2xl shadow-sm border transition-all ${
-                              snapshot.isDragging ? 'shadow-lg ring-2 ring-indigo-400 rotate-2 cursor-grabbing' : 'cursor-grab'
-                            } ${
-                              status === 'Done' ? 'border-l-4 border-l-emerald-400 opacity-80' : 
-                              status === 'In Progress' ? 'border-l-4 border-l-amber-400' : 'border-slate-100'
-                            }`}
-                          >
-                            {/* 1. הזרקת תגית השגרה כאן: */}
-                            {task.is_routine && (
-                              <span className="absolute -top-2 -left-2 text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full uppercase tracking-wider font-bold shadow-sm z-10 pointer-events-none">
-                                Routine
-                              </span>
-                            )}
+                              className={`group relative bg-white p-5 rounded-2xl shadow-sm border transition-all ${
+                                snapshot.isDragging ? 'shadow-lg ring-2 ring-indigo-400 rotate-2 cursor-grabbing' : 'cursor-grab'
+                              } ${
+                                status === 'Done' ? 'border-l-4 border-l-emerald-400 opacity-80' : 
+                                status === 'In Progress' ? 'border-l-4 border-l-amber-400' : 'border-slate-100'
+                              }`}
+                            >
+                              {/* --- 1. טולטיפ תאריך יצירה (מופיע רק בריחוף) --- */}
+                              {task.created_at && (
+                                <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[11px] px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-md">
+                                  נוצר ב: {new Date(task.created_at).toLocaleString('he-IL', { dateStyle: 'short', timeStyle: 'short' })}
+                                </div>
+                              )}
 
-                            <p className={`text-sm font-semibold ${status === 'Done' ? 'text-slate-500 line-through' : 'text-slate-800'}`}>
-                              {task.is_routine && task.icon ? `${task.icon} ${task.title}` : task.title}
-                            </p>
+                              {/* 2. הזרקת תגית השגרה */}
+                              {task.is_routine && (
+                                <span className="absolute -top-2 -left-2 text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full uppercase tracking-wider font-bold shadow-sm z-10 pointer-events-none">
+                                  Routine
+                                </span>
+                              )}
 
-                            {/* 2. הזרקת תצוגת הסטריק (הרצף) מתחת לכותרת: */}
-                            {task.is_routine && task.streak !== undefined && (
-                              <span className="text-xs text-amber-600 font-medium block mt-1">
-                                🔥 רצף נוכחי: {task.streak}
-                              </span>
-                            )}
-                              
+                              {/* --- 3. מצב עריכה VS מצב תצוגה --- */}
+                              {editingTaskId === task.id ? (
+                                <div className="mb-2">
+                                  <input 
+                                    autoFocus
+                                    value={editTitle}
+                                    onChange={(e) => setEditTitle(e.target.value)}
+                                    onBlur={() => handleEditSave(task.id)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') handleEditSave(task.id);
+                                      if (e.key === 'Escape') setEditingTaskId(null);
+                                    }}
+                                    className="w-full text-sm font-semibold border-b-2 border-indigo-500 outline-none bg-indigo-50/50 px-1 py-1 rounded-sm text-slate-800"
+                                    dir="auto"
+                                  />
+                                  <span className="text-[10px] text-slate-400 mt-1 block">Enter לשמירה, Esc לביטול</span>
+                                </div>
+                              ) : (
+                                <div className="flex justify-between items-start gap-2 mb-1">
+                                  <p className={`text-sm font-semibold ${status === 'Done' ? 'text-slate-500 line-through' : 'text-slate-800'}`}>
+                                    {task.is_routine && task.icon ? `${task.icon} ${task.title}` : task.title}
+                                  </p>
+                                  
+                                  {/* כפתור העריכה - מופיע רק בריחוף! (ולא בשגרות או משימות שבוצעו) */}
+                                  {status !== 'Done' && !task.is_routine && (
+                                    <button 
+                                      onClick={() => handleEditStart(task)} 
+                                      className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-indigo-500 transition-all focus:outline-none shrink-0 cursor-pointer"
+                                      title="עריכת משימה"
+                                    >
+                                      ✏️
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* 4. הזרקת תצוגת הסטריק (הרצף) */}
+                              {task.is_routine && task.streak !== undefined && (
+                                <span className="text-xs text-amber-600 font-medium block mt-1">
+                                  🔥 רצף נוכחי: {task.streak}
+                                </span>
+                              )}
+
+                              {/* --- 5. תצוגת דד-ליין (Due Date) --- */}
+                              {task.due_date && (
+                                <div className={`mt-2 flex items-center gap-1 text-[11px] font-semibold w-fit px-2 py-0.5 rounded-md border ${
+                                  new Date(task.due_date) < new Date(new Date().setHours(0,0,0,0)) && status !== 'Done'
+                                    ? 'text-red-600 bg-red-50 border-red-100' 
+                                    : 'text-slate-500 bg-slate-50 border-slate-200'
+                                }`}>
+                                  📅 {new Date(task.due_date).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' })}
+                                </div>
+                              )}
+                                
+                              {/* כפתורי מחיקה וסיום למטה */}
                               <div className="mt-4 pt-3 border-t border-slate-50 flex items-center justify-between">
-                                <button onClick={() => onDeleteTask(task.id)} className="text-xs font-medium text-slate-400 hover:text-red-500">
+                                <button onClick={() => onDeleteTask(task.id)} className="text-xs font-medium text-slate-400 hover:text-red-500 transition-colors">
                                   Delete
                                 </button>
-                               {status !== 'Done' && (
+                                {status !== 'Done' && (
                                   <button 
-                                    onClick={() => onUpdateTask(task)} 
+                                    onClick={() => onUpdateTask({ ...task, is_completed: true })}
                                     className="text-xs font-bold text-emerald-500 hover:text-emerald-600 transition-colors"
                                   >
                                     ✓ Done

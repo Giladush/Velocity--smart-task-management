@@ -2,6 +2,7 @@ import json
 from datetime import date
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import datetime
 
 db = SQLAlchemy()
 
@@ -48,6 +49,7 @@ class Task(db.Model):
     priority = db.Column(db.String(50), default="Medium")
     due_date = db.Column(db.String(50), nullable=True)
     is_completed = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # מפתח זר לתהליך
     process_id = db.Column(db.Integer, db.ForeignKey('process.id'), nullable=True)

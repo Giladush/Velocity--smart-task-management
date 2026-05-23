@@ -162,7 +162,8 @@ def get_all_data():
                     "is_completed": t.is_completed,
                     "status": "Done" if t.is_completed else "To Do",
                     "is_routine": False,
-                    "due_date": t.due_date
+                    "due_date": t.due_date,
+                    "created_at": t.created_at.strftime('%Y-%m-%dT%H:%M:%S') if t.created_at else None
                 })
             processes_data.append({
                 "id": p.id,
@@ -181,7 +182,8 @@ def get_all_data():
                 "is_completed": t.is_completed,
                 "status": "Done" if t.is_completed else "To Do",
                 "is_routine": False,
-                "due_date": t.due_date
+                "due_date": t.due_date,
+                "created_at": t.created_at.strftime('%Y-%m-%dT%H:%M:%S') if t.created_at else None
             })
 
         # 5. שליפת שגרות היום - פילטר מפורש לפי user_id!
@@ -262,11 +264,18 @@ def update_task(task_id):
         return jsonify({"error": "Task not found"}), 404
         
     data = request.get_json()
+    
+    # 1. עדכון סטטוס (מה שהיה לך)
     if 'is_completed' in data:
         task.is_completed = data['is_completed']
         
+    # 2. התיקון החדש: עדכון הכותרת!
+    if 'title' in data:
+        task.title = data['title']
+        
     db.session.commit()
-    return jsonify({"message": "Task updated", "is_completed": task.is_completed}), 200
+    # הוספתי כאן את הכותרת לתשובה כדי שנוכל לראות אותה חוזרת
+    return jsonify({"message": "Task updated", "is_completed": task.is_completed, "title": task.title}), 200
 
 # --------------------------------------------------------
 # ראוט 4: מחיקת משימה (DELETE)
