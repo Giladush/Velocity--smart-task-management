@@ -70,10 +70,10 @@ export default function KanbanBoard({
   return (
     <div className="flex-1 flex overflow-hidden bg-slate-50/50">
       
-      {/* צד שמאל: לוח המשימות המרכזי */}
+      
       <main className="flex-1 flex flex-col min-w-0">
         
-        {/* Header - שורת הוספת המשימות למעלה */}
+        
         <header className="h-[88px] border-b border-slate-200 bg-white flex items-center justify-between px-8 shrink-0 z-10 shadow-sm">
           <h2 className="text-2xl font-extrabold text-slate-800 shrink-0">My Tasks</h2>
           
@@ -109,7 +109,7 @@ export default function KanbanBoard({
           </form>
         </header>
         
-        {/* אזור הטורים - מותאם לגלילה פנימית (Overflow) */}
+    
         <div className="flex-1 p-6 overflow-hidden">
           <DragDropContext onDragEnd={onDragEnd}>
             <div className="flex gap-5 h-full">
@@ -182,7 +182,7 @@ export default function KanbanBoard({
                           snapshot.isDraggingOver ? 'bg-indigo-50/70 border-indigo-300 shadow-inner' : 'bg-slate-100/50 border-slate-200'
                         }`}
                       >
-                        {/* כותרת הטור (דבוקה למעלה) */}
+                        
                         <h3 className="font-bold text-slate-700 p-4 border-b border-slate-200/60 bg-slate-100 flex items-center justify-between shrink-0">
                           {status}
                           <span className="bg-white shadow-sm text-slate-500 text-xs py-1 px-2.5 rounded-full font-semibold border border-slate-200">
@@ -190,7 +190,7 @@ export default function KanbanBoard({
                           </span>
                         </h3>
                         
-                        {/* אזור הפתקיות (נגלל!) */}
+                        
                         <div 
                           ref={provided.innerRef}
                           {...provided.droppableProps}
@@ -310,7 +310,7 @@ export default function KanbanBoard({
         </div>
       </main>
 
-      {/* צד ימין: פאנל הפילטרים החדש! */}
+      
       <aside className="w-56 bg-white border-l border-slate-200 shrink-0 flex flex-col z-10 shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.03)]">
         <div className="p-5 border-b border-slate-100">
           <h3 className="font-extrabold text-slate-800 flex items-center gap-2">
@@ -320,7 +320,7 @@ export default function KanbanBoard({
         
         <div className="p-5 flex-1 overflow-y-auto space-y-5">
           
-          {/* Time Filters */}
+          
           <div>
             <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Time</h4>
             <div className="flex flex-col gap-2">
@@ -351,7 +351,7 @@ export default function KanbanBoard({
             </div>
           </div>
 
-          {/* Urgency Filters */}
+          
           <div>
             <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Urgency</h4>
             <div className="flex flex-col gap-2">
@@ -382,7 +382,7 @@ export default function KanbanBoard({
             </div>
           </div>
 
-          {/* Specific Date Filter */}
+          
           <div>
             <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Specific Date</h4>
             <input 
@@ -398,7 +398,7 @@ export default function KanbanBoard({
               }`}
             />
           </div>
-          {/* אזור הציטוט שנדבק לתחתית */}
+          
           <div className="mt-auto pt-4 mt-4 border-t border-slate-200/60">
             <div className="text-center bg-slate-50 rounded-xl p-4 transition-all hover:bg-slate-100 shadow-sm">
               <p className="text-sm text-slate-600 font-medium italic mb-2">

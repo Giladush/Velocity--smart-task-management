@@ -10,11 +10,11 @@ export default function ProcessBoard({ processes, selectedProcessId, onUpdateTas
     if (selectedProcessId) {
       const targetId = Number(selectedProcessId);
       
-      // הבדיקה הקריטית: האם התהליך כבר הגיע מהשרת לתוך המערך שלנו?
+      
       const isProcessLoaded = processes.some(p => Number(p.id) === targetId);
 
       if (isProcessLoaded) {
-        // התהליך נמצא! עכשיו בטוח לפתוח ולגלול אליו
+        
         setExpandedId(targetId);
         
         setTimeout(() => {
@@ -25,7 +25,7 @@ export default function ProcessBoard({ processes, selectedProcessId, onUpdateTas
           }
         }, 100);
       } else {
-        // התהליך עדיין לא הגיע, מחכים לרינדור הבא (אחרי ש-fetchData יסיים)
+        
         console.log("⏳ Still fetching data... waiting.");
       }
     }
@@ -46,7 +46,7 @@ export default function ProcessBoard({ processes, selectedProcessId, onUpdateTas
           </div>
         ) : (
           processes.map(p => {
-            // חישוב דינמי של אחוזי ההתקדמות
+            
             const totalTasks = p.tasks?.length || 0;
             const completedTasks = p.tasks?.filter(t => t.is_completed).length || 0;
             const progressPercentage = totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
@@ -77,7 +77,7 @@ export default function ProcessBoard({ processes, selectedProcessId, onUpdateTas
                   </div>
                 </div>
                 
-                {/* Progress Bar */}
+                
                 <div className={`w-full h-3 bg-slate-100 rounded-full overflow-hidden ${isExpanded ? 'mb-6' : 'mb-2'}`}>
                   <div 
                     className="h-full bg-indigo-500 transition-all duration-1000 ease-out" 
@@ -85,14 +85,14 @@ export default function ProcessBoard({ processes, selectedProcessId, onUpdateTas
                   ></div>
                 </div>
 
-                {/* רשימת המשימות - מופיעה רק אם התהליך פתוח */}
+                
                 {isExpanded && (
                   <div className="bg-slate-50 rounded-xl p-6 border border-slate-100 animate-fade-in mt-4" onClick={(e) => e.stopPropagation()}>
                     <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-6 text-center">מסלול התקדמות</h4>
                     
-                    {/* המסלול החדש בסגנון דואולינגו */}
+                    
                     <div className="relative flex flex-col items-center z-0" dir="rtl">
-                      {/* הקו האחורי שמחבר בין כל השלבים */}
+                      
                       <div className="absolute top-4 bottom-8 w-3 bg-slate-200 rounded-full -z-10"></div>
 
                       {p.tasks?.map((task, index) => {
@@ -104,7 +104,7 @@ export default function ProcessBoard({ processes, selectedProcessId, onUpdateTas
                             className="relative flex flex-col items-center mb-8 cursor-pointer group"
                             onClick={() => onUpdateTask({ ...task, is_completed: !isCompleted })} // הופך את הסטטוס בלחיצה
                           >
-                            {/* כפתור עגול תלת-ממדי */}
+                            
                             <div className={`w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold shadow-sm border-b-4 active:border-b-0 active:translate-y-1 transition-all ${
                               isCompleted
                                 ? 'bg-emerald-400 border-emerald-500 text-white scale-110' // עיצוב משימה שהושלמה
@@ -113,7 +113,7 @@ export default function ProcessBoard({ processes, selectedProcessId, onUpdateTas
                               {isCompleted ? '✓' : index + 1}
                             </div>
                             
-                            {/* כותרת המשימה מתחת לכפתור */}
+                            
                             <span className={`mt-3 text-sm font-bold px-4 py-1.5 rounded-full shadow-sm border ${
                               isCompleted ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-slate-600 bg-white border-slate-200'
                             }`}>

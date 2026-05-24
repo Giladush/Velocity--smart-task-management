@@ -34,11 +34,11 @@ export default function Auth({ setToken }) {
       }
 
       if (isLogin) {
-        // שמירת הטוקן בדפדפן ועדכון האפליקציה!
+        
         localStorage.setItem('stride_token', data.access_token);
         setToken(data.access_token);
       } else {
-        // אחרי הרשמה מוצלחת - נעביר אותה להתחברות
+        
         setIsLogin(true);
         setError('Registration successful! Please log in.');
       }
@@ -129,7 +129,7 @@ export default function Auth({ setToken }) {
             {isLogin ? 'Sign up' : 'Log in'}
           </button>
         </div>
-        {/* אזור הקרדיט */}
+        
         <div className="mt-8 pt-5 border-t border-slate-100">
           <p className="text-xs text-slate-400 font-medium tracking-wide text-center">
             Designed & Developed by Gilad Amir 2026 ©

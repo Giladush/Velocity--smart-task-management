@@ -10,7 +10,7 @@ export default function Sidebar({ activeView, setActiveView, streak, onSendMessa
     setChatInput('');
   };
 
-  // פונקציה לזיהוי לחיצה על אנטר לעומת שיפט+אנטר
+  
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -21,7 +21,7 @@ export default function Sidebar({ activeView, setActiveView, streak, onSendMessa
   return (
     <aside className="w-80 bg-white border-r border-slate-200 flex flex-col shadow-sm z-10 shrink-0 h-screen">
       
-      {/* Header */}
+      
       <div className="p-5 border-b border-slate-100 shrink-0">
         <h1 className="text-3xl font-extrabold text-indigo-600 tracking-tight">Velocity</h1>
         <p className="text-sm text-slate-500 mt-1 font-medium">Smart Task Management</p>
@@ -29,7 +29,7 @@ export default function Sidebar({ activeView, setActiveView, streak, onSendMessa
 
       <div className="flex-1 flex flex-col overflow-hidden">
         
-        {/* Streak Area */}
+        
         <div className="p-3 shrink-0">
           <div className="bg-gradient-to-br from-indigo-50 to-white p-3 rounded-2xl border border-indigo-100 shadow-sm flex items-center gap-3">
             <div className="text-2xl">🔥</div>
@@ -40,7 +40,7 @@ export default function Sidebar({ activeView, setActiveView, streak, onSendMessa
           </div>
         </div>
 
-        {/* Navigation Tabs (מסודר בדיוק לפי הסקיצה!) */}
+        
         <nav className="px-3 pb-3 flex flex-col gap-1.5 shrink-0 border-b border-slate-100">
           <button
             onClick={onOpenSummary}
@@ -88,7 +88,7 @@ export default function Sidebar({ activeView, setActiveView, streak, onSendMessa
           </button>
         </nav>
 
-        {/* My AI Agent interface (נקי, רק כותרת ותיבת טקסט) */}
+        
         <div className="flex-1 min-h-0 flex flex-col p-3">
           <div className="flex flex-col bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden relative">
             <div className="p-2.5 border-b border-slate-200 bg-white/50 shrink-0">
@@ -114,7 +114,7 @@ export default function Sidebar({ activeView, setActiveView, streak, onSendMessa
         </div>
       </div>
 
-      {/* אזור תחתית הסיידבר - כפתור התנתקות */}
+      
       <div className="p-4 mt-auto border-t border-slate-100 shrink-0 bg-white">
         <button
           onClick={handleLogout}

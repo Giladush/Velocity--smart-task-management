@@ -20,12 +20,12 @@ export default function RoutinesBoard() {
       const response = await fetch('http://localhost:5000/api/routines');
       const data = await response.json();
       
-      // ההגנה: מעדכנים סטייט רק אם השרת החזיר OK וגם אם הנתונים הם באמת מערך!
+      
       if (response.ok && Array.isArray(data)) {
         setRoutines(data);
       } else {
         console.error("Server error or invalid data:", data);
-        setRoutines([]); // מונע קריסה של הפרונטאנד
+        setRoutines([]); 
       }
     } catch (error) {
       console.error("Error fetching routines:", error);
@@ -35,10 +35,9 @@ export default function RoutinesBoard() {
   };
 
   const toggleRoutine = async (id) => {
-    // שומרים גיבוי של המצב הנוכחי למקרה שהשרת ייכשל
+    
     const previousRoutines = [...routines];
     
-    // Optimistic Update
     setRoutines(routines.map(routine => 
       routine.id === id 
         ? { ...routine, completedToday: !routine.completedToday, streak: routine.completedToday ? routine.streak - 1 : routine.streak + 1 } 
@@ -56,18 +55,18 @@ export default function RoutinesBoard() {
       setRoutines(prev => prev.map(r => r.id === id ? updatedRoutine : r));
     } catch (error) {
       console.error("Error toggling routine:", error);
-      // מחזירים את הממשק למצב הקודם והתקין בלי לעשות Fetch חדש מהשרת
+      
       setRoutines(previousRoutines);
     }
   };
 
   const deleteRoutine = async (id, e) => {
-    // עצירת האירוע כדי שלחיצה על הפח לא תסמן את המשימה כבוצעה
+    
     e.stopPropagation();
     
     if (!window.confirm('האם אתה בטוח שברצונך למחוק שגרה זו?')) return;
 
-    // עדכון אופטימי ב-UI
+    
     setRoutines(routines.filter(routine => routine.id !== id));
 
     try {
@@ -76,7 +75,7 @@ export default function RoutinesBoard() {
       });
     } catch (error) {
       console.error("Error deleting routine:", error);
-      fetchRoutines(); // במקרה של שגיאה, נטען מחדש מהשרת
+      fetchRoutines(); 
     }
   };
 
@@ -106,14 +105,14 @@ export default function RoutinesBoard() {
         body: JSON.stringify(routineData)
       });
       
-      // אין צורך יותר לשמור את addedRoutine או לקרוא ל-setRoutines
+      
       
       setNewTitle('');
       setNewIcon('⚡');
       setSelectedDays(['Mon', 'Tue', 'Wed', 'Thu', 'Fri']);
       setIsAdding(false);
       
-      // השורה החשובה: הוספנו await לפני ה-fetchData
+      
       await fetchData(); 
       
     } catch (error) {
@@ -123,7 +122,7 @@ export default function RoutinesBoard() {
 
   return (
     <main className="flex-1 flex flex-col relative bg-slate-50 overflow-hidden">
-      {/* Header */}
+      
       <header className="h-20 border-b border-slate-200 bg-white/80 backdrop-blur-md flex items-center justify-between px-8 z-10 shrink-0">
         <h2 className="text-xl font-bold text-slate-800">Daily Routines</h2>
         <button 
@@ -136,7 +135,7 @@ export default function RoutinesBoard() {
       
       <div className="flex-1 p-8 overflow-y-auto">
         
-        {/* טופס הוספה */}
+        
         {isAdding && (
           <form onSubmit={handleAddRoutine} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm mb-8 flex flex-col gap-4 animate-in fade-in slide-in-from-top-4 duration-300">
             <div className="flex gap-4">
@@ -187,7 +186,7 @@ export default function RoutinesBoard() {
           </form>
         )}
 
-        {/* רשימת שגרות */}
+        
         {isLoading ? (
           <div className="flex justify-center items-center h-40 text-slate-400 font-bold">
             טוען שגרות מהשרת...
@@ -208,7 +207,7 @@ export default function RoutinesBoard() {
                     : 'bg-white border-slate-200 hover:border-indigo-300 hover:shadow-lg hover:-translate-y-1'
                 }`}
               >
-                {/* אזור לחיץ לסימון V (תופס את רוב הכרטיסייה) */}
+                
                 <div 
                   className="flex flex-1 items-center gap-5 min-w-0"
                 >
@@ -231,7 +230,7 @@ export default function RoutinesBoard() {
                   </div>
                 </div>
 
-                {/* כפתור מחיקה - מופיע רק בריחוף (group-hover) */}
+                
                 <button
                   onClick={(e) => deleteRoutine(routine.id, e)}
                   className="absolute top-3 left-3 p-1.5 text-slate-300 hover:text-red-500 rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200"

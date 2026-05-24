@@ -1,32 +1,26 @@
 import React from 'react';
 
 export default function DailySummary({ closeModal, tasks, processes }) {
-  // 1. חילוץ התאריך של היום בפורמט YYYY-MM-DD (מתוקן לפי אזור הזמן המקומי!)
+  
   const now = new Date();
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, '0');
   const day = String(now.getDate()).padStart(2, '0');
   const todayStr = `${year}-${month}-${day}`;
 
-  // 2. סינון שגרות (השרת שלנו כבר שולח לפה רק שגרות שאמורות לקרות היום, ניקח את מה שטרם בוצע)
   const todaysRoutines = tasks.filter(t => t.is_routine && !t.is_completed);
 
-  // 3. סינון משימות רגילות שמועד הסיום שלהן הוא היום (וטרם בוצעו)
   const todaysStandalone = tasks.filter(t => !t.is_routine && t.due_date === todayStr && !t.is_completed);
 
-  // 4. סינון משימות מתוך תהליכים שמועד הסיום שלהן הוא היום (וטרם בוצעו)
   const todaysProcessTasks = processes.flatMap(p => p.tasks).filter(t => t.due_date === todayStr && !t.is_completed);
 
-  // 5. איחוד כל המשימות (לא כולל שגרות) לרשימה אחת
   const allTodaysTasks = [...todaysStandalone, ...todaysProcessTasks];
 
   return (
     <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       
-      {/* פה תוקנה ההערה שיצרה את הכיתוב המוזר בצד! */}
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[85vh]">
         
-        {/* אזור הכותרת */}
         <div className="p-6 border-b border-slate-100 bg-indigo-50/50 flex justify-between items-center">
           <div>
             <h2 className="text-2xl font-extrabold text-indigo-900">Daily Snapshot ☀️</h2>
@@ -44,10 +38,8 @@ export default function DailySummary({ closeModal, tasks, processes }) {
           </button>
         </div>
 
-        {/* אזור התוכן המרכזי */}
         <div className="p-6 overflow-y-auto flex flex-col gap-6">
           
-          {/* אזור השגרות */}
           {todaysRoutines.length > 0 && (
             <div>
               <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">שגרות</h3>
@@ -62,7 +54,6 @@ export default function DailySummary({ closeModal, tasks, processes }) {
             </div>
           )}
 
-          {/* אזור המשימות */}
           {allTodaysTasks.length > 0 && (
             <div>
               <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">משימות להיום</h3>
@@ -77,7 +68,6 @@ export default function DailySummary({ closeModal, tasks, processes }) {
             </div>
           )}
 
-          {/* מצב ריק - כשאין כלום להיום */}
           {todaysRoutines.length === 0 && allTodaysTasks.length === 0 && (
             <div className="text-center py-8">
               <div className="text-4xl mb-3">🎉</div>
@@ -88,7 +78,6 @@ export default function DailySummary({ closeModal, tasks, processes }) {
 
         </div>
         
-        {/* אזור תחתון */}
         <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end">
           <button 
             onClick={closeModal}

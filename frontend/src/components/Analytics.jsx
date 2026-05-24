@@ -44,7 +44,7 @@ export default function Analytics({ token }) {
   const normalDash = (normalPct / 100) * circumference;
   const lowDash = (lowPct / 100) * circumference;
 
-  // התיקון: היסט (Offset) שלילי דוחף את תחילת הקו קדימה, בדיוק מאיפה שהקודם עצר
+
   const normalOffset = -highDash;
   const lowOffset = -(highDash + normalDash);
 
@@ -64,10 +64,10 @@ export default function Analytics({ token }) {
             
             <div className="relative w-40 h-40 flex items-center justify-center mb-2">
               <svg className="w-full h-full transform -rotate-90" viewBox="0 0 120 120">
-                {/* רקע לטבעת */}
+                
                 <circle cx="60" cy="60" r={radius} fill="transparent" stroke="#f1f5f9" strokeWidth="12" />
                 
-                {/* מקטע עדיפות גבוהה (אדום) */}
+                
                 {highPct > 0 && (
                   <circle 
                     cx="60" cy="60" r={radius} fill="transparent" stroke="#ef4444" strokeWidth="12"
@@ -76,7 +76,7 @@ export default function Analytics({ token }) {
                   />
                 )}
                 
-                {/* מקטע עדיפות רגילה (צהוב) */}
+                
                 {normalPct > 0 && (
                   <circle 
                     cx="60" cy="60" r={radius} fill="transparent" stroke="#eab308" strokeWidth="12"
@@ -85,7 +85,7 @@ export default function Analytics({ token }) {
                   />
                 )}
                 
-                {/* מקטע עדיפות נמוכה (ירוק) */}
+                
                 {lowPct > 0 && (
                   <circle 
                     cx="60" cy="60" r={radius} fill="transparent" stroke="#22c55e" strokeWidth="12"
