@@ -8,13 +8,13 @@ import DailySummary from './components/DailySummary';
 import Analytics from './components/Analytics';
 
 function App() {
-  const [aiAdvice, setAiAdvice] = useState(null); // ישמור את הניתוח המפורט של היועץ
-  const [selectedProcessId, setSelectedProcessId] = useState(null); // עבור ניווט לתהליך ספציפי
+  const [aiAdvice, setAiAdvice] = useState(null); 
+  const [selectedProcessId, setSelectedProcessId] = useState(null); 
   const [activeView, setActiveView] = useState('tasks');
   const [streak, setStreak] = useState(0);
   const [tasks, setTasks] = useState([]); 
   const [processes, setProcesses] = useState([]);
-  const [isThinking, setIsThinking] = useState(false); // הסטייט החדש שלנו!
+  const [isThinking, setIsThinking] = useState(false); 
   const [activeFilter, setActiveFilter] = useState('default');
   const [customDate, setCustomDate] = useState('');
   const [customDaysCount, setCustomDaysCount] = useState(0);
@@ -29,18 +29,17 @@ function App() {
   }, [token]);
 
 const fetchData = async () => {
-  if (!token) return; // 1. אם אין טוקן, אין מה לנסות למשוך נתונים
+  if (!token) return; 
   try {
     const res = await fetch('http://localhost:5000/api/data', {
       headers: {
-        'Authorization': `Bearer ${token}` // 2. מצרפים את הטוקן!
+        'Authorization': `Bearer ${token}` 
       }
     });
     if (!res.ok) throw new Error("Failed to fetch data");
     
     const data = await res.json();
     
-    // מיזוג חכם למשימות רגילות
     setTasks(prevTasks => {
       return data.standalone_tasks.map(serverTask => {
         const localTask = prevTasks.find(t => String(t.id) === String(serverTask.id));
@@ -51,7 +50,6 @@ const fetchData = async () => {
       });
     });
 
-    // 🎯 הנה השורה המנצחת - שומרים את התהליכים!
     setProcesses(data.processes || []);
 
     if (data.streak !== undefined) {
@@ -64,9 +62,9 @@ const fetchData = async () => {
 };
 
 const handleLogout = () => {
-    localStorage.removeItem('stride_token'); // 1. מוחקים את הטוקן מהזיכרון של הדפדפן
+    localStorage.removeItem('stride_token'); 
     sessionStorage.removeItem('hasSeenSummary');
-    setToken(null); // 2. מאפסים את הסטייט כדי שהאפליקציה תציג מיד את מסך ההתחברות
+    setToken(null); 
   };
 
   useEffect(() => { fetchData(); }, []);
@@ -78,56 +76,54 @@ const handleLogout = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` // <-- הוספנו את שורת הטוקן גם לפה
+          'Authorization': `Bearer ${token}` 
         },
         body: JSON.stringify({ message: userMessage })
       });
     const data = await res.json();
     
-    // הצגת תגובת הטקסט בצ'אט כרגיל
-    // setMessages(prev => [...prev, { text: data.reply, sender: 'ai' }]);
 
-    // מנוע הפעולות הרשמי:
+
+    // ai agent official protocol
     if (data.action) {
       const { type, payload } = data.action;
 
       switch (type) {
         
-        // 1. מיון משימות (עבור X ימים או תאריך ספציפי או רמת דחיפות)
+        
         case 'SET_FILTER':
           if (payload.filter_value === 'next_X_days') {
             setActiveFilter('next_X_days');
-            setCustomDaysCount(payload.days_count); // נצטרך סטייט קטן לזה
+            setCustomDaysCount(payload.days_count); 
           } else if (payload.filter_value === 'custom') {
             setCustomDate(payload.custom_date);
             setActiveFilter('custom');
           } else if (['high_urgency', 'normal_urgency', 'low_urgency'].includes(payload.filter_value)) {
             setActiveFilter(payload.filter_value);
           } else {
-            setActiveFilter(payload.filter_value); // 'today', 'default', 'next7days'
+            setActiveFilter(payload.filter_value); 
           }
           break;
-        // 2 + 3 + 5. רענון מידע (קורה אחרי שהבאקאנד ביצע יצירה/מחיקה/העברה ב-DB)
+        
         case 'REFRESH_DATA':
           fetchData();
           break;
 
-        // 4. ניווט באתר
-        // ניווט באתר (מתוקן)
+          
         case 'NAVIGATE':
-          // קודם כל: שואבים את הנתונים העדכניים מהשרת כדי להכיר תהליכים חדשים שנוצרו!
+          
           await fetchData(); 
           
-          // רק אז מנווטים
+          
           setActiveView(payload.view); 
           
-          // ואם ה-AI שלח לנו ID ספציפי לפתוח - פותחים אותו
+          
           if (payload.process_id) {
             setSelectedProcessId(payload.process_id); 
           }
           break;
 
-        // 6. יועץ חכם (מציג פאנל מיוחד במסך)
+        
         case 'SET_ADVICE':
           setAiAdvice(payload.advice_text);
           break;
@@ -143,7 +139,7 @@ const handleLogout = () => {
       }
     };
 
-  // --- שאר הפונקציות נשארות זהות ---
+  
   const handleAddTask = async (title, dueDate, urgency) => {
   try {
     const res = await fetch('http://localhost:5000/api/tasks', {
@@ -155,7 +151,7 @@ const handleLogout = () => {
       body: JSON.stringify({
         title: title,
         due_date: dueDate || null,
-        urgency: urgency || 'normal' // הוספנו את הדחיפות לכאן!
+        urgency: urgency || 'normal' 
       })
     });
     
@@ -169,10 +165,10 @@ const handleLogout = () => {
 
   const handleUpdateTask = async (task) => {
   try {
-    // בדיקה חסינת-תקלות: גם אם הדגל חסר, אם ה-ID מכיל 'routine_', אנחנו יודעים שזו שגרה!
+    
     if (task.is_routine || String(task.id).includes('routine_')) {
       
-      // חילוץ בטוח של המספר (מ-"routine_2" נשאר רק "2")
+      
       const actualRoutineId = task.routine_id || String(task.id).replace('routine_', '');
       
       const res = await fetch(`http://localhost:5000/api/routines/${actualRoutineId}/toggle`, {
@@ -186,17 +182,17 @@ const handleLogout = () => {
       }
     } 
     else {
-      // כאן מטופלות רק משימות רגילות (שה-ID שלהן הוא מספר נקי)
+      
       const res = await fetch(`http://localhost:5000/api/tasks/${task.id}`, {
         method: 'PUT',
         headers: { 
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}` 
       },
-        // 👇 --- התיקון שלנו נמצא כאן! במקום true קבוע, שולחים את הנתונים האמיתיים --- 👇
+        
         body: JSON.stringify({ 
-          is_completed: task.is_completed, // מקבל את הסטטוס מהמשימה
-          title: task.title                // שולח את השם (החדש או הישן)
+          is_completed: task.is_completed, 
+          title: task.title                
         })
       });
       
@@ -223,20 +219,20 @@ const handleLogout = () => {
   const oldStatus = source.droppableId;
   const isCompleted = newStatus === 'Done';
 
-  // 1. עדכון אופטימי ב-UI - שומר את הכרטיסייה איפה ששחררת אותה (למשל In Progress)
+  
   setTasks(tasks.map(task => 
     String(task.id) === String(draggableId) ? { ...task, status: newStatus, is_completed: isCompleted } : task
   ));
 
-  // עדכון רצף כללי של האפליקציה (אם קיים)
+  
 
 
-  // --- פיצול לוגי מול השרת ---
+  // logic separation for Routines vs Regular Tasks
   const isRoutine = draggedTask.is_routine || String(draggableId).includes('routine_');
 
   if (isRoutine) {
-    // מפעילים את ה-Toggle בשרת *רק* אם השגרה נכנסה ל-Done או יצאה מ-Done
-    // (גרירה ל-In Progress לא תעשה כלום בשרת כרגע)
+    
+    
     if (newStatus === 'Done' || oldStatus === 'Done') {
       const actualRoutineId = draggedTask.routine_id || String(draggableId).replace('routine_', '');
       
@@ -244,14 +240,14 @@ const handleLogout = () => {
         method: 'POST'
       })
       .then(res => {
-        // עושים ריענון נתונים כדי להביא את הסטריק *רק* כשהשגרה הסתיימה!
+        
         if (res.ok && newStatus === 'Done') fetchData(); 
       })
       .catch(err => console.error("Error toggling routine:", err));
     }
   } else {
-    // עבור משימות רגילות: מעדכנים את השרת, אבל *בלי* לעשות fetchData!
-    // ככה המשימה תישאר ב-In Progress ולא תקפוץ חזרה ל-To Do בטעות
+    
+    
     fetch(`http://localhost:5000/api/tasks/${draggedTask.id}`, {
       method: 'PUT',
       headers: { 
@@ -266,25 +262,25 @@ const handleLogout = () => {
 
 const handleDeleteTask = async (taskId) => {
   try {
-    // בודקים אם מנסים למחוק שגרה (Routine) או משימה רגילה
+    
     const isRoutine = String(taskId).includes('routine_');
     
     if (isRoutine) {
-      // חילוץ ה-ID המספרי של השגרה
+      
       const actualRoutineId = String(taskId).replace('routine_', '');
       const res = await fetch(`http://localhost:5000/api/routines/${actualRoutineId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${token}` // <-- הוספנו את הטוקן למחיקת שגרה
+          'Authorization': `Bearer ${token}` 
         }
       });
       if (res.ok) fetchData();
     } else {
-      // מחיקה של משימה רגילה
+      
       const res = await fetch(`http://localhost:5000/api/tasks/${taskId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${token}` // <-- הוספנו את הטוקן למחיקת משימה
+          'Authorization': `Bearer ${token}` 
         }
       });
       if (res.ok) fetchData();
