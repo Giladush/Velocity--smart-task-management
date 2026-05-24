@@ -57,7 +57,7 @@ export default function Auth({ setToken }) {
             <span className="text-white text-3xl">🚀</span>
           </div>
           <h2 className="text-2xl font-bold text-slate-800">
-            {isLogin ? 'Welcome back to Stride' : 'Create your Stride account'}
+            {isLogin ? 'Welcome back to Velocity' : 'Create your Velocity account'}
           </h2>
           <p className="text-slate-500 mt-2">
             {isLogin ? 'Enter your details to access your tasks.' : 'Start managing your life like a pro.'}
@@ -115,7 +115,7 @@ export default function Auth({ setToken }) {
             disabled={loading}
             className="w-full py-3.5 bg-indigo-600 text-white rounded-xl font-bold shadow-md hover:bg-indigo-700 focus:ring-4 focus:ring-indigo-100 transition-all disabled:opacity-70"
           >
-            {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Create Account')}
+            {loading ? 'Processing...' : (isLogin ? 'Log in' : 'Create Account')}
           </button>
         </form>
 
@@ -128,6 +128,12 @@ export default function Auth({ setToken }) {
           >
             {isLogin ? 'Sign up' : 'Log in'}
           </button>
+        </div>
+        {/* אזור הקרדיט */}
+        <div className="mt-8 pt-5 border-t border-slate-100">
+          <p className="text-xs text-slate-400 font-medium tracking-wide text-center">
+            Designed & Developed by Gilad Amir 2026 ©
+          </p>
         </div>
       </div>
     </div>

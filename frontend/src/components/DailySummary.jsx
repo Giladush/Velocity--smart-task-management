@@ -29,8 +29,8 @@ export default function DailySummary({ closeModal, tasks, processes }) {
         {/* אזור הכותרת */}
         <div className="p-6 border-b border-slate-100 bg-indigo-50/50 flex justify-between items-center">
           <div>
-            <h2 className="text-2xl font-extrabold text-indigo-900">תמונת מצב יומית ☀️</h2>
-            <p className="text-sm text-indigo-600/80 mt-1 font-medium">הנה מה שמחכה לך היום</p>
+            <h2 className="text-2xl font-extrabold text-indigo-900">Daily Snapshot ☀️</h2>
+            <p className="text-sm text-indigo-600/80 mt-1 font-medium">Here's what's waiting for you today</p>
           </div>
           
           <button 
@@ -81,8 +81,8 @@ export default function DailySummary({ closeModal, tasks, processes }) {
           {todaysRoutines.length === 0 && allTodaysTasks.length === 0 && (
             <div className="text-center py-8">
               <div className="text-4xl mb-3">🎉</div>
-              <h3 className="text-lg font-bold text-slate-700">הכל נקי להיום!</h3>
-              <p className="text-slate-500">אין לך משימות פתוחות להיום. זמן מצוין להתקדם עם תהליכים או לקחת הפסקה.</p>
+              <h3 className="text-lg font-bold text-slate-700">All clear for today!</h3>
+              <p className="text-slate-500">No open tasks for today! Perfect time to push forward with your processes, or just take a well-deserved break.</p>
             </div>
           )}
 
@@ -94,7 +94,7 @@ export default function DailySummary({ closeModal, tasks, processes }) {
             onClick={closeModal}
             className="px-6 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
           >
-            יאללה לעבודה!
+           Let's get to work!
           </button>
         </div>
         

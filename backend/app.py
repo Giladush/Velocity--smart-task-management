@@ -4,6 +4,7 @@ from models import db, Task, Process, Routine, User, CompletionLog
 from datetime import date, timedelta, datetime
 import os
 import json
+import requests
 import google.generativeai as genai
 from dotenv import load_dotenv
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
@@ -46,11 +47,10 @@ def register():
     email = data.get('email')
     password = data.get('password')
 
-    # מוודאים שהמשתמש לא קיים כבר
+    
     if User.query.filter_by(username=username).first() or User.query.filter_by(email=email).first():
         return jsonify({"error": "Username or email already exists"}), 400
 
-    # יוצרים יוזר חדש במסד הנתונים
     new_user = User(username=username, email=email)
     new_user.set_password(password)
     db.session.add(new_user)
@@ -121,15 +121,88 @@ def get_analytics():
                 "completed": daily_count
             })
 
+       # 4. חישוב משימות פתוחות לפי דחיפות (urgency במקום priority!)
+        # סינון: רק משימות בודדות (process_id == None) שטרם הושלמו
+        open_high = Task.query.filter(
+            Task.user_id == current_user_id, 
+            Task.is_completed == False, 
+            Task.process_id == None,  # מוודא שזו לא משימה מתוך תהליך
+            Task.urgency.in_(['high', 'High'])
+        ).count()
+        
+        open_normal = Task.query.filter(
+            Task.user_id == current_user_id, 
+            Task.is_completed == False, 
+            Task.process_id == None,  # מוודא שזו לא משימה מתוך תהליך
+            Task.urgency.in_(['normal', 'Normal', None, ''])
+        ).count()
+        
+        open_low = Task.query.filter(
+            Task.user_id == current_user_id, 
+            Task.is_completed == False, 
+            Task.process_id == None,  # מוודא שזו לא משימה מתוך תהליך
+            Task.urgency.in_(['low', 'Low'])
+        ).count()
+        
+        open_tasks_by_priority = {
+            "high": open_high,
+            "normal": open_normal,
+            "low": open_low
+        }
         return jsonify({
             "overall_progress": round(overall_progress),
             "processes_progress": processes_data,
-            "weekly_chart": weekly_data
+            "weekly_chart": weekly_data,
+            "open_tasks_by_priority": open_tasks_by_priority # הנתון החדש שנשלח לפרונטאנד
         }), 200
 
     except Exception as e:
         print(f"Analytics Error: {e}")
         return jsonify({"error": "Failed to fetch analytics"}), 500
+
+# משתנים גלובליים לשמירת הציטוט בזיכרון (Cache)
+cached_quote = {
+    "text": "The secret of getting ahead is getting started.",
+    "author": "Mark Twain"
+}
+last_fetch_date = None
+
+@app.route('/api/quote', methods=['GET'])
+def get_quote():
+    global cached_quote, last_fetch_date
+    
+    # שולפים את התאריך של היום
+    today = datetime.now().date()
+    
+    # בודקים אם התאריך התחלף או שזו הפעם הראשונה שהפונקציה רצה
+    if last_fetch_date != today:
+        try:
+            # הגיע יום חדש - יוצאים החוצה להביא ציטוט
+            response = requests.get('https://quotes.rest/qod?language=en', timeout=5)
+            
+            # אם הבקשה הצליחה (סטטוס 200)
+            if response.status_code == 200:
+                data = response.json()
+                if 'contents' in data and 'quotes' in data['contents']:
+                    quote_data = data['contents']['quotes'][0]
+                    
+                    # שומרים את הציטוט החדש בזיכרון
+                    cached_quote = {
+                        "text": quote_data.get('quote'),
+                        "author": quote_data.get('author')
+                    }
+                    # מעדכנים את חותמת הזמן
+                    last_fetch_date = today
+            else:
+                print(f"Quote API returned status: {response.status_code}")
+                # אם ה-API החזיר שגיאה (למשל הגבלת קריאות), המשתנה cached_quote פשוט ישמור על הערך הקודם שלו
+                
+        except Exception as e:
+            print(f"Error fetching quote from API: {e}")
+            # במקרה של שגיאת רשת, המערכת פשוט תחזיר את הברירת מחדל או את הציטוט של אתמול
+            
+    # מחזירים את הציטוט ל-React
+    return jsonify(cached_quote), 200
 # --------------------------------------------------------
 # ראוט 1: שליפת כל התהליכים והמשימות + הזרקה וירטואלית (GET)
 # --------------------------------------------------------

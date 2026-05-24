@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 
 export default function KanbanBoard({ 
@@ -11,6 +11,22 @@ export default function KanbanBoard({
   const [editingTaskId, setEditingTaskId] = useState(null);
   const [editTitle, setEditTitle] = useState("");
   const [newTaskUrgency, setNewTaskUrgency] = useState('normal');
+  const [quote, setQuote] = useState({ text: "Loading...", author: "" });
+
+  useEffect(() => {
+    const fetchDailyQuote = async () => {
+      try {
+        const res = await fetch('http://127.0.0.1:5000/api/quote');
+        if (res.ok) {
+          const data = await res.json();
+          setQuote(data);
+        }
+      } catch (error) {
+        console.error("Failed to load quote:", error);
+      }
+    };
+    fetchDailyQuote();
+  }, []);
 
   const handleEditStart = (task) => {
     setEditingTaskId(task.id);
@@ -302,11 +318,11 @@ export default function KanbanBoard({
           </h3>
         </div>
         
-        <div className="p-5 flex-1 overflow-y-auto space-y-8">
+        <div className="p-5 flex-1 overflow-y-auto space-y-5">
           
           {/* Time Filters */}
           <div>
-            <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Time</h4>
+            <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Time</h4>
             <div className="flex flex-col gap-2">
               <button 
                 onClick={() => setActiveFilter('default')}
@@ -337,7 +353,7 @@ export default function KanbanBoard({
 
           {/* Urgency Filters */}
           <div>
-            <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Urgency</h4>
+            <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Urgency</h4>
             <div className="flex flex-col gap-2">
               <button 
                 onClick={() => setActiveFilter('high_urgency')}
@@ -381,6 +397,17 @@ export default function KanbanBoard({
                 activeFilter === 'custom' ? 'border-indigo-300 bg-indigo-50/30 text-indigo-700 ring-1 ring-indigo-100' : 'border-slate-200 text-slate-600 bg-slate-50 focus:bg-white focus:border-indigo-400'
               }`}
             />
+          </div>
+          {/* אזור הציטוט שנדבק לתחתית */}
+          <div className="mt-auto pt-4 mt-4 border-t border-slate-200/60">
+            <div className="text-center bg-slate-50 rounded-xl p-4 transition-all hover:bg-slate-100 shadow-sm">
+              <p className="text-sm text-slate-600 font-medium italic mb-2">
+                "{quote.text}"
+              </p>
+              <p className="text-xs text-slate-400 font-semibold tracking-wider uppercase">
+                — {quote.author}
+              </p>
+            </div>
           </div>
 
         </div>

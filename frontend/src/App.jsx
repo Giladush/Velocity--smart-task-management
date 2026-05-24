@@ -336,7 +336,7 @@ const handleDeleteTask = async (taskId) => {
             {aiAdvice && (
               <div className="bg-gradient-to-br from-indigo-50 to-purple-50 p-6 rounded-2xl border border-indigo-100 shadow-sm mb-6 mt-6 mx-8 animate-fade-in animate-duration-200" dir="rtl">
                 <div className="flex justify-between items-center mb-3">
-                  <h3 className="font-bold text-indigo-900 text-lg flex items-center gap-2">✨ עצת הסוכן החכם</h3>
+                  <h3 className="font-bold text-indigo-900 text-lg flex items-center gap-2">Agent Insights ✨</h3>
                   <button onClick={() => setAiAdvice(null)} className="text-slate-400 hover:text-slate-600 font-bold">✕</button>
                 </div>
                 <p className="text-slate-700 whitespace-pre-line text-sm leading-relaxed">{aiAdvice}</p>
