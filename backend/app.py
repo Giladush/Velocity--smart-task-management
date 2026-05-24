@@ -136,7 +136,6 @@ def get_analytics():
 @app.route('/api/data', methods=['GET'])
 @jwt_required()  # 1. חוסם גישה למי שאין לו טוקן בתוקף
 def get_all_data():
-
     calculated_streak = 0
     try:
         # 2. שליפת ה-ID של המשתמש המחובר מתוך הטוקן
@@ -155,7 +154,7 @@ def get_all_data():
                     "id": t.id,
                     "title": t.title,
                     "is_completed": t.is_completed,
-                    "status": "Done" if t.is_completed else "To Do",
+                    "status": t.status if t.status else ("Done" if t.is_completed else "To Do"),
                     "is_routine": False,
                     "due_date": t.due_date,
                     "created_at": t.created_at.strftime('%Y-%m-%dT%H:%M:%S') if t.created_at else None,
@@ -176,7 +175,7 @@ def get_all_data():
                 "id": t.id,
                 "title": t.title,
                 "is_completed": t.is_completed,
-                "status": "Done" if t.is_completed else "To Do",
+                "status": t.status if t.status else ("Done" if t.is_completed else "To Do"),
                 "is_routine": False,
                 "due_date": t.due_date,
                 "created_at": t.created_at.strftime('%Y-%m-%dT%H:%M:%S') if t.created_at else None,
@@ -211,27 +210,22 @@ def get_all_data():
                     "due_date": None
                 })
 
-                # === 3. חישוב סטריק חכם מתוך יומן ההשלמות ===
-                logs = CompletionLog.query.filter_by(user_id=current_user_id).all()
-                
-                # המרה בטוחה למחרוזת כדי למנוע בעיות תאימות של SQLite
-                unique_dates = {str(log.completed_date)[:10] for log in logs if log.completed_date}
-                
-                calculated_streak = 0
-                today = datetime.now().date()
-                yesterday = today - timedelta(days=1)
-                
-                # הופכים גם את תאריכי הבדיקה למחרוזות
-                today_str = str(today)
-                check_date_str = str(yesterday)
-                
-                if today_str in unique_dates:
-                    calculated_streak += 1
-                    
-                check_date = yesterday
-                while str(check_date) in unique_dates:
-                    calculated_streak += 1
-                    check_date -= timedelta(days=1)
+        # === 6. חישוב סטריק חכם מתוך יומן ההשלמות ===
+        logs = CompletionLog.query.filter_by(user_id=current_user_id).all()
+        
+        # המרה בטוחה למחרוזת כדי למנוע בעיות תאימות של SQLite
+        unique_dates = {str(log.completed_date).strip()[:10] for log in logs if log.completed_date}
+        
+        current_check = datetime.now().date()
+        
+        # אם עוד לא הושלמה משימה היום, בודקים אם הרצף נשמר מאתמול
+        if str(current_check) not in unique_dates:
+            current_check -= timedelta(days=1)
+            
+        # צועדים אחורה יום-יום
+        while str(current_check) in unique_dates:
+            calculated_streak += 1
+            current_check -= timedelta(days=1)
 
         return jsonify({
             "processes": processes_data,
@@ -290,15 +284,31 @@ def update_task(task_id):
         
     data = request.get_json()
     
-    # 1. עדכון סטטוס, יומן השלמות וסטריק שגרות
-    if 'is_completed' in data:
-        new_status = data['is_completed']
-        task.is_completed = new_status
+    # משתנה מעקב כדי לדעת אם צריך להפעיל את לוגיקת הסטריקים
+    process_completion = False
+    new_is_completed = task.is_completed
+
+    # עדכון מתוך גרירה בלוח הקנבן (סטטוס)
+    if 'status' in data:
+        task.status = data['status']
+        # סנכרון אוטומטי של שדה is_completed לפי הסטטוס
+        new_is_completed = (data['status'] == 'Done')
+        process_completion = True
         
+    # עדכון מתוך לחיצה על כפתור סיום (is_completed)
+    elif 'is_completed' in data:
+        new_is_completed = data['is_completed']
+        # סנכרון אוטומטי של הסטטוס לפי is_completed
+        task.status = "Done" if new_is_completed else "To Do"
+        process_completion = True
+
+    # 1. עדכון יומן השלמות וסטריק שגרות (רץ רק אם חל שינוי)
+    if process_completion:
+        task.is_completed = new_is_completed
         today_date = datetime.now().date()
         
         # --- א. ניהול יומן השלמות כללי (לסטריק הראשי) ---
-        if new_status == True:
+        if new_is_completed == True:
             existing_log = CompletionLog.query.filter_by(task_id=task.id, completed_date=today_date).first()
             if not existing_log:
                 new_log = CompletionLog(user_id=task.user_id, task_id=task.id, completed_date=today_date)
@@ -319,7 +329,7 @@ def update_task(task_id):
 
             yesterday_date = today_date - timedelta(days=1)
 
-            if new_status == True:
+            if new_is_completed == True:
                 # אם סימנו כ-Done והשגרה לא עודכנה כבר היום
                 if last_completed != today_date:
                     routine.streak = (routine.streak or 0) + 1
@@ -338,7 +348,8 @@ def update_task(task_id):
     
     return jsonify({
         "message": "Task updated", 
-        "is_completed": task.is_completed, 
+        "is_completed": task.is_completed,
+        "status": getattr(task, 'status', 'To Do'),
         "title": task.title
     }), 200
 # --------------------------------------------------------
@@ -390,6 +401,11 @@ def chat_with_stride():
         Current open tasks: {json.dumps(open_tasks, ensure_ascii=False)}
         Existing processes: {json.dumps(existing_processes, ensure_ascii=False)}
         Existing routines: {json.dumps(existing_routines, ensure_ascii=False)}
+
+        CRITICAL RULES FOR TASK PRESENTATION AND PRIORITIZATION:
+        1. NO TASK IDs: Never output the task ID (the numbers in parentheses) to the user. Refer to tasks purely by their text titles. For example, output "Submit forms" and never "Submit forms (45)". 
+        2. PRIORITIZATION LOGIC: Always give the highest priority to bureaucratic, financial, medical, or administrative tasks (e.g., National Insurance / Bituah Leumi, banking, paying bills, government forms),
+        even if they are standalone tasks. Leisure, hobby, or recreational projects (e.g., baking bread, organizing a trip) must always receive a lower priority, regardless of how many sub-tasks they contain.
 
         The user says: "{user_message}"
 

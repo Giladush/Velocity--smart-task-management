@@ -1,8 +1,12 @@
 import React from 'react';
 
 export default function DailySummary({ closeModal, tasks, processes }) {
-  // 1. חילוץ התאריך של היום בפורמט YYYY-MM-DD כדי שנוכל להשוות
-  const todayStr = new Date().toISOString().split('T')[0];
+  // 1. חילוץ התאריך של היום בפורמט YYYY-MM-DD (מתוקן לפי אזור הזמן המקומי!)
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const todayStr = `${year}-${month}-${day}`;
 
   // 2. סינון שגרות (השרת שלנו כבר שולח לפה רק שגרות שאמורות לקרות היום, ניקח את מה שטרם בוצע)
   const todaysRoutines = tasks.filter(t => t.is_routine && !t.is_completed);

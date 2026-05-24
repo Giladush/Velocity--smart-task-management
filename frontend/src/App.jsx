@@ -258,7 +258,7 @@ const handleLogout = () => {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}` 
     },
-      body: JSON.stringify({ is_completed: isCompleted })
+      body: JSON.stringify({status: newStatus, is_completed: isCompleted })
     })
     .catch(err => console.error("Error syncing task drag to server:", err));
   }
@@ -343,72 +343,6 @@ const handleDeleteTask = async (taskId) => {
               </div>
             )}
 
-            {/* סרגל הפילטרים */}
-            <div className="flex items-center gap-3 mt-6 mx-8 bg-white p-3 rounded-xl shadow-sm border border-slate-100 w-max" dir="rtl">
-              <span className="text-sm font-semibold text-slate-500 ml-2">מיון לפי:</span>
-              
-              <button 
-                onClick={() => setActiveFilter('default')}
-                className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${activeFilter === 'default' ? 'bg-indigo-100 text-indigo-700 font-bold' : 'text-slate-600 hover:bg-slate-50'}`}
-              >
-                ברירת מחדל
-              </button>
-              
-              <button 
-                onClick={() => setActiveFilter('today')}
-                className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${activeFilter === 'today' ? 'bg-indigo-100 text-indigo-700 font-bold' : 'text-slate-600 hover:bg-slate-50'}`}
-              >
-                היום
-              </button>
-              
-              <button 
-                onClick={() => setActiveFilter('next7days')}
-                className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${activeFilter === 'next7days' ? 'bg-indigo-100 text-indigo-700 font-bold' : 'text-slate-600 hover:bg-slate-50'}`}
-              >
-                7 ימים קרובים
-              </button>
-
-              {/* כפתורי סינון דחיפות */}
-              <div className="flex items-center gap-1 border-r pr-2 mr-2 border-slate-200">
-                  <span className="text-xs font-medium text-slate-400 ml-1">דחיפות:</span>
-                  <button 
-                    onClick={() => setActiveFilter('high_urgency')}
-                    className={`px-2 py-1 rounded text-xs transition-colors ${activeFilter === 'high_urgency' ? 'bg-red-100 text-red-700 font-bold border border-red-200' : 'text-slate-500 hover:bg-slate-50 border border-transparent'}`}
-                  >
-                    🔴 גבוהה
-                  </button>
-                  <button 
-                    onClick={() => setActiveFilter('normal_urgency')}
-                    className={`px-2 py-1 rounded text-xs transition-colors ${activeFilter === 'normal_urgency' ? 'bg-emerald-100 text-emerald-700 font-bold border border-emerald-200' : 'text-slate-500 hover:bg-slate-50 border border-transparent'}`}
-                  >
-                    🟡 רגילה
-                  </button>
-                  <button 
-                    onClick={() => setActiveFilter('low_urgency')}
-                    className={`px-2 py-1 rounded text-xs transition-colors ${activeFilter === 'low_urgency' ? 'bg-green-100 text-green-700 font-bold border border-green-200' : 'text-slate-500 hover:bg-slate-50 border border-transparent'}`}
-                  >
-                    🟢 נמוכה
-                  </button>
-              </div>
-
-              <div className="flex items-center gap-2 border-r pr-2 mr-2 border-slate-200">
-                <button 
-                  onClick={() => setActiveFilter('custom')}
-                  className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${activeFilter === 'custom' ? 'bg-indigo-100 text-indigo-700 font-bold' : 'text-slate-600 hover:bg-slate-50'}`}
-                >
-                  תאריך ספציפי:
-                </button>
-                <input 
-                  type="date" 
-                  value={customDate}
-                  onChange={(e) => {
-                    setCustomDate(e.target.value);
-                    if (e.target.value) setActiveFilter('custom');
-                  }}
-                  className="text-sm border-none bg-slate-50 rounded-md px-2 py-1 outline-none focus:ring-2 focus:ring-indigo-100 cursor-pointer text-slate-700"
-                />
-              </div>
-            </div>
 
             {/* לוח הקנבן עצמו */}
             <KanbanBoard 
@@ -420,6 +354,8 @@ const handleDeleteTask = async (taskId) => {
               activeFilter={activeFilter}
               customDate={customDate}
               customDaysCount={customDaysCount}
+              setActiveFilter={setActiveFilter}
+              setCustomDate={setCustomDate}
             />
           </div>
         )}

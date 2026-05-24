@@ -51,6 +51,7 @@ class Task(db.Model):
     is_completed = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     urgency = db.Column(db.String(20), default='normal')
+    status = db.Column(db.String(50), default="To Do")
     
     # מפתח זר לתהליך
     process_id = db.Column(db.Integer, db.ForeignKey('process.id'), nullable=True)
