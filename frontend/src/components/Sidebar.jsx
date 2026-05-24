@@ -98,7 +98,7 @@ export default function Sidebar({ activeView, setActiveView, streak, onSendMessa
             <form onSubmit={handleChatSubmit} className="p-2 bg-white shrink-0">
               <textarea 
                 disabled={isThinking}
-                placeholder="Break down a goal..." 
+                placeholder="What's next? Add a task, break a goal, or just consult... 🤖" 
                 rows="3"
                 className={`w-full p-2 text-sm rounded-lg bg-slate-100 focus:outline-none transition-all duration-300 resize-none ${
                   isThinking 

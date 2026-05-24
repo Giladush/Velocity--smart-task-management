@@ -223,6 +223,18 @@ export default function RoutinesBoard() {
                         {routine.streak} 🔥
                       </span>
                     </div>
+                    {routine.frequency && routine.frequency.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {routine.frequency.map((day, index) => (
+                          <span 
+                            key={index} 
+                            className="text-[10px] font-medium bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-full"
+                          >
+                            {day}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   <div className={`text-4xl transition-transform ${routine.completedToday ? 'scale-110' : 'grayscale opacity-50'}`}>
