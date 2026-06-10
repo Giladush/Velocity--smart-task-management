@@ -10,8 +10,9 @@ from dotenv import load_dotenv
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from datetime import timedelta
 from sqlalchemy import func
-
 from routes import main_bp
+from calendar_routes import calendar_bp
+
 
 app = Flask(__name__)
 # JWT
@@ -46,8 +47,11 @@ last_fetch_date = None
 
 app.register_blueprint(main_bp)
 
+app.register_blueprint(calendar_bp)
+
 
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     app.run(debug=True, port=5000)
+

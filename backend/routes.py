@@ -8,7 +8,6 @@ import google.generativeai as genai
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from sqlalchemy import func
 
-
 main_bp = Blueprint('main', __name__)
 
 # Health Check
@@ -48,6 +47,8 @@ def login():
         return jsonify({"access_token": access_token, "username": user.username}), 200
 
     return jsonify({"error": "Invalid credentials"}), 401
+
+
 
 # analytics route
 @main_bp.route('/api/analytics', methods=['GET'])
