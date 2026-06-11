@@ -12,6 +12,14 @@ export default function KanbanBoard({
   const [editTitle, setEditTitle] = useState("");
   const [newTaskUrgency, setNewTaskUrgency] = useState('normal');
   const [quote, setQuote] = useState({ text: "Loading...", author: "" });
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('cal_token');
+    if (token) {
+      localStorage.setItem('cal_token', token);
+      window.history.replaceState({}, '', '/');
+    }
+  }, []);
 
   useEffect(() => {
     const fetchDailyQuote = async () => {
@@ -68,62 +76,50 @@ export default function KanbanBoard({
   };
 
   const connectToGoogleCalendar = async () => {
-  try {
-    // קריאה לשרת ה-Flask שלנו כדי לקבל את כתובת ההתחברות לגוגל
-    const response = await fetch('http://127.0.0.1:5000/api/calendar/auth');
-    const data = await response.json();
-    
-    if (response.ok && data.auth_url) {
-      // אם קיבלנו את הכתובת בהצלחה, אנחנו מעבירים את הדפדפן לשם
-      window.location.href = data.auth_url;
-    } else {
-      console.error("Failed to get auth URL:", data);
-      alert("שגיאה בקבלת קישור ההתחברות לגוגל");
-    }
-  } catch (error) {
-    console.error("Network error:", error);
-  }
-  
-  
-  const addTaskToCalendar = async (task) => {
-  try {
-    // אנחנו שולחים בקשת POST לשרת עם פרטי המשימה
-    const response = await fetch('http://127.0.0.1:5000/api/calendar/create_event', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        title: task.title,
-        description: task.description || "משימה שנוצרה ב-Velocity",
-        // גוגל מצפה לפורמט תאריך מלא. אם יש לך תאריך בפורמט אחר, כדאי להמיר אותו
-        // דוגמה לפורמט תקין: "2026-06-10T10:00:00"
-        start_time: task.start_time || new Date().toISOString().slice(0, 19), 
-        end_time: task.end_time || new Date(Date.now() + 3600000).toISOString().slice(0, 19) // ברירת מחדל: שעה קדימה
-      }),
-    });
-
-    const data = await response.json();
-
-    if (response.ok) {
-      alert("🎉 המשימה נוספה ליומן בהצלחה!");
-      // אפשר גם לפתוח את האירוע שיצרנו בחלון חדש:
-      if (data.calendar_link) {
-         window.open(data.calendar_link, '_blank');
-      }
-    } else {
-      // אם נקבל שגיאת 401, זה אומר שהמשתמש עוד לא התחבר לגוגל
-      if (response.status === 401) {
-        alert("עליך לחבר את חשבון הגוגל שלך קודם!");
+    try {
+      const response = await fetch('http://127.0.0.1:5000/api/calendar/auth');
+      const data = await response.json();
+      if (response.ok && data.auth_url) {
+        window.location.href = data.auth_url;
       } else {
-        alert("שגיאה ביצירת האירוע: " + data.error);
+        console.error("Failed to get auth URL:", data);
+        alert("שגיאה בקבלת קישור ההתחברות לגוגל");
       }
+    } catch (error) {
+      console.error("Network error:", error);
     }
-  } catch (error) {
-    console.error("Failed to add event:", error);
-  }
-};
-};
+  };
+
+  const addTaskToCalendar = async (task) => {
+    try {
+      const response = await fetch('http://127.0.0.1:5000/api/calendar/create_event', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Calendar-Token': localStorage.getItem('cal_token') || '',
+        },
+        body: JSON.stringify({
+          title: task.title,
+          description: task.description || "משימה שנוצרה ב-Velocity",
+          start_time: task.due_date ? `${task.due_date}T09:00:00` : new Date().toISOString().slice(0, 19),
+          end_time: task.due_date ? `${task.due_date}T10:00:00` : new Date(Date.now() + 3600000).toISOString().slice(0, 19),
+        }),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        alert("המשימה נוספה ליומן בהצלחה!");
+        if (data.calendar_link) window.open(data.calendar_link, '_blank');
+      } else {
+        if (response.status === 401) {
+          alert("עליך לחבר את חשבון הגוגל שלך קודם!");
+        } else {
+          alert("שגיאה ביצירת האירוע: " + data.error);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to add event:", error);
+    }
+  };
 
   return (
     <div className="flex-1 flex overflow-hidden bg-slate-50/50">
@@ -165,10 +161,11 @@ export default function KanbanBoard({
               + Add Task
             </button>
 
-            <button 
-              onClick={connectToGoogleCalendar} 
+            <button
+              type="button"
+              onClick={connectToGoogleCalendar}
               className="p-2 ml-2 text-xl text-slate-500 rounded-full cursor-pointer hover:bg-slate-200 hover:text-slate-800 transition-colors flex items-center justify-center"
-              title="חיבור ליומן גוגל" 
+              title="חיבור ליומן גוגל"
             >
             🔗
             </button>
@@ -351,14 +348,23 @@ export default function KanbanBoard({
                                     <button onClick={() => onDeleteTask(task.id)} className="text-[11px] font-bold text-slate-400 hover:text-red-500 transition-colors uppercase tracking-wider">
                                       Delete
                                     </button>
-                                    {status !== 'Done' && (
-                                      <button 
-                                        onClick={() => onUpdateTask({ ...task, is_completed: true })}
-                                        className="text-[11px] font-bold text-emerald-500 hover:text-emerald-600 transition-colors uppercase tracking-wider bg-emerald-50 px-2 py-1 rounded-md"
+                                    <div className="flex items-center gap-2">
+                                      <button
+                                        onClick={() => addTaskToCalendar(task)}
+                                        className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-blue-500 transition-all focus:outline-none"
+                                        title="הוסף ליומן גוגל"
                                       >
-                                        ✓ Done
+                                        📅
                                       </button>
-                                    )}
+                                      {status !== 'Done' && (
+                                        <button
+                                          onClick={() => onUpdateTask({ ...task, is_completed: true })}
+                                          className="text-[11px] font-bold text-emerald-500 hover:text-emerald-600 transition-colors uppercase tracking-wider bg-emerald-50 px-2 py-1 rounded-md"
+                                        >
+                                          ✓ Done
+                                        </button>
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
                               )}

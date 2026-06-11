@@ -1,11 +1,12 @@
 import os
-from flask import Blueprint, jsonify, session
+import secrets
+from flask import Blueprint, jsonify, request, redirect
 from google_auth_oauthlib.flow import Flow
-from flask import request, redirect
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 
-# 1. הגדרת ה-Blueprint
+os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
+
 calendar_bp = Blueprint('calendar', __name__)
 
 SCOPES = ['https://www.googleapis.com/auth/calendar.events']
@@ -21,43 +22,41 @@ client_config = {
     }
 }
 
-def create_google_flow():
+_pkce_store = {}        # state -> code_verifier
+_credentials_store = {} # token -> credentials dict
+
+def create_google_flow(autogenerate_code_verifier=False):
     return Flow.from_client_config(
         client_config,
         scopes=SCOPES,
-        redirect_uri="http://127.0.0.1:5000/api/callback"
+        redirect_uri="http://127.0.0.1:5000/api/callback",
+        autogenerate_code_verifier=autogenerate_code_verifier
     )
 
-# 2. הראוט הראשון - שימי לב שמשתמשים ב-calendar_bp במקום ב-app
+
 @calendar_bp.route('/api/calendar/auth', methods=['GET'])
 def calendar_auth():
-    flow = create_google_flow()
+    flow = create_google_flow(autogenerate_code_verifier=True)
     authorization_url, state = flow.authorization_url(
         access_type='offline',
         include_granted_scopes='true'
     )
-    session['state'] = state
+    _pkce_store[state] = flow.code_verifier
     return jsonify({"auth_url": authorization_url})
 
 
-# מכיוון שאנחנו מפתחים לוקאלית על HTTP רגיל, השורה הזו מכבה את חסימת האבטחה הזו זמנית:
-os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
-
-
-# --- הראוט השני: Callback ---
 @calendar_bp.route('/api/callback')
 def calendar_callback():
-    # 1. יצירת ה-Flow מחדש כדי לטפל בתשובה מגוגל
+    state = request.args.get('state')
+    code_verifier = _pkce_store.pop(state, None)
     flow = create_google_flow()
-    
-    # 2. אנחנו אומרים לספרייה של גוגל: קחי את כל ה-URL שגוגל החזירה לנו, ותחלצי משם את הטוקן
-    flow.fetch_token(authorization_response=request.url)
-    
-    # 3. חילוץ המפתחות שגוגל שלחה לנו
+    flow.fetch_token(
+        authorization_response=request.url,
+        code_verifier=code_verifier
+    )
     credentials = flow.credentials
-    
-    # 4. שמירת המפתחות בתוך ה-session כדי שנזכור אותם (בהמשך עדיף לשמור במסד הנתונים)
-    session['google_credentials'] = {
+    token = secrets.token_urlsafe(32)
+    _credentials_store[token] = {
         'token': credentials.token,
         'refresh_token': credentials.refresh_token,
         'token_uri': credentials.token_uri,
@@ -65,20 +64,16 @@ def calendar_callback():
         'client_secret': credentials.client_secret,
         'scopes': credentials.scopes
     }
-    
-    # 5. סיימנו בהצלחה! עכשיו מחזירים את המשתמש חזרה לפרונטאנד של React
-    # (שני את הפורט ל-3000 או 5173, תלוי על איזה פורט ה-React שלך רץ)
-    return redirect('http://localhost:5173/')
+    return redirect(f'http://localhost:5173/?cal_token={token}')
 
 
 @calendar_bp.route('/api/calendar/create_event', methods=['POST'])
 def create_calendar_event():
-    # 1. נוודא שהמשתמש עבר את תהליך ההתחברות ויש לנו את המפתחות שלו
-    if 'google_credentials' not in session:
+    token = request.headers.get('X-Calendar-Token')
+    if not token or token not in _credentials_store:
         return jsonify({"error": "Unauthorized: Google Calendar not connected"}), 401
 
-    # 2. שחזור המפתחות מהסשן לתוך אובייקט Credentials שגוגל מכירה
-    creds_data = session['google_credentials']
+    creds_data = _credentials_store[token]
     creds = Credentials(
         token=creds_data['token'],
         refresh_token=creds_data['refresh_token'],
@@ -89,19 +84,13 @@ def create_calendar_event():
     )
 
     try:
-        # 3. פתיחת ערוץ התקשורת מול שרתי היומן של גוגל
         service = build('calendar', 'v3', credentials=creds)
-
-        # 4. קבלת הנתונים שה-React שלח (כותרת וזמנים)
         task_data = request.json
-        
-        # 5. יצירת האובייקט בפורמט המדויק שגוגל דורשת
         event = {
             'summary': task_data.get('title', 'משימה חדשה מ-Velocity'),
             'description': task_data.get('description', 'נוצר אוטומטית דרך המערכת.'),
             'start': {
-                # הפורמט שגוגל מצפה לו: "2026-06-10T10:00:00"
-                'dateTime': task_data.get('start_time'), 
+                'dateTime': task_data.get('start_time'),
                 'timeZone': 'Asia/Jerusalem',
             },
             'end': {
@@ -109,13 +98,9 @@ def create_calendar_event():
                 'timeZone': 'Asia/Jerusalem',
             },
         }
-
-        # 6. ביצוע הפעולה: הוספת האירוע ליומן הראשי ('primary')
         created_event = service.events().insert(calendarId='primary', body=event).execute()
-        
-        # מחזירים ל-React הודעת הצלחה ולינק ישיר לאירוע שנוצר
         return jsonify({
-            "message": "Event created successfully!", 
+            "message": "Event created successfully!",
             "calendar_link": created_event.get('htmlLink')
         }), 201
 

@@ -146,29 +146,18 @@ def get_quote():
     
     
     if last_fetch_date != today:
+        last_fetch_date = today
         try:
-            
-            response = requests.get('https://quotes.rest/qod?language=en', timeout=5)
-            
-            
+            response = requests.get('https://zenquotes.io/api/today', timeout=5)
             if response.status_code == 200:
                 data = response.json()
-                if 'contents' in data and 'quotes' in data['contents']:
-                    quote_data = data['contents']['quotes'][0]
-                    
-                    
+                if data:
                     cached_quote = {
-                        "text": quote_data.get('quote'),
-                        "author": quote_data.get('author')
+                        "text": data[0].get('q'),
+                        "author": data[0].get('a')
                     }
-                    
-                    last_fetch_date = today
-            else:
-                print(f"Quote API returned status: {response.status_code}")
-                
-                
-        except Exception as e:
-            print(f"Error fetching quote from API: {e}")
+        except Exception:
+            pass
             
     return jsonify(cached_quote), 200
 

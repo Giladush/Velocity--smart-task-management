@@ -15,12 +15,13 @@ from calendar_routes import calendar_bp
 
 
 app = Flask(__name__)
+app.secret_key = os.getenv("FLASK_SECRET_KEY")
 # JWT
 app.config['JWT_SECRET_KEY'] = 'super-secret-stride-key-change-in-prod'
 app.config['JWT_TOKEN_LOCATION'] = ['headers']  # אומר לשרת לחפש את הטוקן בכותרות הבקשה
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=30)
 jwt = JWTManager(app)
-CORS(app)
+CORS(app, supports_credentials=True, origins=['http://localhost:5173'])
 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///velocity.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
