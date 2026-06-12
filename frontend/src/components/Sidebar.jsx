@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-export default function Sidebar({ activeView, setActiveView, streak, onSendMessage, isThinking, handleLogout, onOpenSummary, taskCount, processCount, routineCount }) {
+export default function Sidebar({ activeView, setActiveView, streak, onSendMessage, isThinking, handleLogout, onOpenSummary, taskCount, processCount, routineCount, username }) {
   const [chatInput, setChatInput] = useState('');
 
   const handleChatSubmit = (e) => {
@@ -46,7 +46,7 @@ export default function Sidebar({ activeView, setActiveView, streak, onSendMessa
             onClick={onOpenSummary}
             className="flex items-center gap-3 px-4 py-2.5 bg-indigo-50/50 text-indigo-700 rounded-xl hover:bg-indigo-100 hover:shadow-sm text-sm font-bold transition-all border border-indigo-100/30"
           >
-            <span className="text-lg">☀️</span> Daily Summary
+            <span className="text-lg">☀️</span> {username ? `${username}'s Daily Snapshot` : 'Daily Snapshot'}
           </button>
 
           <button
@@ -56,7 +56,7 @@ export default function Sidebar({ activeView, setActiveView, streak, onSendMessa
             }`}
           >
             <span className="text-lg">📋</span>
-            <span className="flex-1 text-left">Task Board</span>
+            <span className="flex-1 text-left">My Tasks</span>
             {taskCount > 0 && (
               <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${activeView === 'tasks' ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-500'}`}>{taskCount}</span>
             )}
@@ -69,7 +69,7 @@ export default function Sidebar({ activeView, setActiveView, streak, onSendMessa
             }`}
           >
             <span className="text-lg">🚀</span>
-            <span className="flex-1 text-left">Process Board</span>
+            <span className="flex-1 text-left">My Processes</span>
             {processCount > 0 && (
               <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${activeView === 'processes' ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-500'}`}>{processCount}</span>
             )}
@@ -82,7 +82,7 @@ export default function Sidebar({ activeView, setActiveView, streak, onSendMessa
             }`}
           >
             <span className="text-lg">🔁</span>
-            <span className="flex-1 text-left">Daily Routines</span>
+            <span className="flex-1 text-left">My Routines</span>
             {routineCount > 0 && (
               <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${activeView === 'routines' ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-500'}`}>{routineCount}</span>
             )}

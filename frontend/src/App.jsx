@@ -4,6 +4,7 @@ import KanbanBoard from './components/KanbanBoard';
 import ProcessBoard from './components/ProcessBoard';
 import RoutinesBoard from './components/RoutinesBoard';
 import Auth from './components/Auth';
+import LandingPage from './components/LandingPage';
 import DailySummary from './components/DailySummary';
 import Analytics from './components/Analytics';
 import {
@@ -25,6 +26,17 @@ function App() {
   const [customDate, setCustomDate] = useState('');
   const [customDaysCount, setCustomDaysCount] = useState(0);
   const [token, setToken] = useState(localStorage.getItem('stride_token') || null);
+  const [username, setUsername] = useState(localStorage.getItem('stride_username') || '');
+  const [preAuthView, setPreAuthView] = useState('landing');
+  const [authMode, setAuthMode] = useState('login');
+
+  useEffect(() => {
+    const handlePopState = () => {
+      if (!token) setPreAuthView('landing');
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [token]);
   const [showSummary, setShowSummary] = useState(false);
   const [routineCount, setRoutineCount] = useState(0);
 
@@ -38,6 +50,16 @@ function App() {
   const fetchData = async () => {
     if (!token) return;
     try {
+      if (!localStorage.getItem('stride_username')) {
+        const meRes = await fetch('http://localhost:5000/api/me', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (meRes.ok) {
+          const me = await meRes.json();
+          localStorage.setItem('stride_username', me.username);
+          setUsername(me.username);
+        }
+      }
       const data = await fetchAllData(token);
       setTasks(prevTasks =>
         data.standalone_tasks.map(serverTask => {
@@ -58,11 +80,13 @@ function App() {
 
   const handleLogout = () => {
     localStorage.removeItem('stride_token');
+    localStorage.removeItem('stride_username');
     sessionStorage.removeItem('hasSeenSummary');
     setToken(null);
+    setUsername('');
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { fetchData(); }, [token]);
 
   const handleAISend = async (userMessage) => {
     setIsThinking(true);
@@ -207,7 +231,15 @@ function App() {
   };
 
   if (!token) {
-    return <Auth setToken={setToken} />;
+    if (preAuthView === 'landing') {
+      return (
+        <LandingPage
+          onLogin={() => { setAuthMode('login'); setPreAuthView('auth'); window.history.pushState({ view: 'auth' }, '', '/'); }}
+          onSignup={() => { setAuthMode('signup'); setPreAuthView('auth'); window.history.pushState({ view: 'auth' }, '', '/'); }}
+        />
+      );
+    }
+    return <Auth setToken={setToken} setUsername={setUsername} initialMode={authMode} />;
   }
 
   return (
@@ -218,6 +250,7 @@ function App() {
           closeModal={() => setShowSummary(false)}
           tasks={tasks}
           processes={processes}
+          username={username}
         />
       )}
 
@@ -232,6 +265,7 @@ function App() {
         taskCount={tasks.filter(t => !t.is_routine && !t.is_completed).length}
         processCount={processes.length}
         routineCount={routineCount}
+        username={username}
       />
 
       <div className="flex-1 flex flex-col overflow-hidden">

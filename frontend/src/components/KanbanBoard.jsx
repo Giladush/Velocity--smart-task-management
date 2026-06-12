@@ -22,7 +22,7 @@ export default function KanbanBoard({
   const tagAreaRef = useRef(null);
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [viewMode, setViewMode] = useState('board');
+  const [viewMode, setViewMode] = useState(() => localStorage.getItem('velocity_viewMode') || 'board');
 
   const columns = ['To Do', 'In Progress', 'Done'];
 
@@ -398,12 +398,12 @@ export default function KanbanBoard({
           <div className="flex items-center bg-slate-100 rounded-xl p-1 gap-0.5">
             <button
               type="button"
-              onClick={() => setViewMode('board')}
+              onClick={() => { setViewMode('board'); localStorage.setItem('velocity_viewMode', 'board'); }}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === 'board' ? 'bg-white text-slate-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
             >⊞ Board</button>
             <button
               type="button"
-              onClick={() => setViewMode('list')}
+              onClick={() => { setViewMode('list'); localStorage.setItem('velocity_viewMode', 'list'); }}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === 'list' ? 'bg-white text-slate-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
             >≡ List</button>
           </div>

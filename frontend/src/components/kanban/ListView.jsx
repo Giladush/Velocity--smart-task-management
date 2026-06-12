@@ -29,7 +29,7 @@ export default function ListView({
           return (
             <div
               key={task.id}
-              className={`group flex items-center gap-3 px-5 py-3 border-b border-slate-100 hover:bg-slate-50/70 transition-colors ${task.status === 'Done' ? 'opacity-65' : ''}`}
+              className={`group flex items-center gap-3 px-5 py-3 border-b border-slate-100 hover:ring-1 hover:ring-inset hover:ring-indigo-200 hover:bg-indigo-50/20 transition-all ${task.status === 'Done' ? 'opacity-65' : ''}`}
             >
               {/* Status color bar */}
               <div className={`w-1.5 h-9 rounded-full shrink-0 ${
@@ -111,12 +111,14 @@ export default function ListView({
               </div>
 
               {/* Actions */}
-              <div className="w-[176px] shrink-0 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-all">
+              <div className="w-[176px] shrink-0 flex items-center justify-between">
                 <button onClick={() => addTaskToCalendar(task)} title="Add to Google Calendar" className="text-slate-400 hover:text-blue-500 transition-colors">📅</button>
                 {!task.is_routine && (
                   <button onClick={() => handleEditStart(task)} className="text-slate-400 hover:text-indigo-500 transition-colors" title="Edit">✏️</button>
                 )}
-                <button onClick={() => onDeleteTask(task.id)} className="text-[11px] font-bold text-slate-400 hover:text-red-500 transition-colors uppercase tracking-wide">Delete</button>
+                {!task.is_routine && (
+                  <button onClick={() => onDeleteTask(task.id)} className="text-[11px] font-bold text-slate-400 hover:text-red-500 transition-colors uppercase tracking-wide">Delete</button>
+                )}
                 {task.status !== 'Done' && (
                   <button
                     onClick={() => onUpdateTask({ ...task, is_completed: true, status: 'Done' })}

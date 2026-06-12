@@ -93,10 +93,12 @@ export default function TaskCard({
       )}
 
       <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
-        <button
-          onClick={() => onDeleteTask(task.id)}
-          className="text-[11px] font-bold text-slate-400 hover:text-red-500 transition-colors uppercase tracking-wider"
-        >Delete</button>
+        {!task.is_routine && (
+          <button
+            onClick={() => onDeleteTask(task.id)}
+            className="text-[11px] font-bold text-slate-400 hover:text-red-500 transition-colors uppercase tracking-wider"
+          >Delete</button>
+        )}
         <div className="flex items-center gap-2">
           <button
             onClick={() => addTaskToCalendar(task)}
