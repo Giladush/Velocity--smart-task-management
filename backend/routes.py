@@ -184,8 +184,9 @@ def get_all_data():
                     "status": t.status if t.status else ("Done" if t.is_completed else "To Do"),
                     "is_routine": False,
                     "due_date": t.due_date,
-                    "created_at": t.created_at.strftime('%Y-%m-%dT%H:%M:%S') if t.created_at else None,
-                    "urgency": t.urgency or 'normal'
+                    "created_at": t.created_at.strftime('%Y-%m-%dT%H:%M:%SZ') if t.created_at else None,
+                    "urgency": t.urgency or 'normal',
+                    "tags": [x.strip() for x in t.tags.split(',') if x.strip()] if t.tags else []
                 })
             processes_data.append({
                 "id": p.id,
@@ -204,8 +205,9 @@ def get_all_data():
                 "status": t.status if t.status else ("Done" if t.is_completed else "To Do"),
                 "is_routine": False,
                 "due_date": t.due_date,
-                "created_at": t.created_at.strftime('%Y-%m-%dT%H:%M:%S') if t.created_at else None,
-                "urgency": t.urgency or 'normal'
+                "created_at": t.created_at.strftime('%Y-%m-%dT%H:%M:%SZ') if t.created_at else None,
+                "urgency": t.urgency or 'normal',
+                "tags": [x.strip() for x in t.tags.split(',') if x.strip()] if t.tags else []
             })
 
         active_routines = Routine.query.filter_by(is_active=True, user_id=current_user_id).all()
@@ -271,18 +273,21 @@ def add_task():
     due_date = data.get('due_date')
     title = data.get('title')
     
-    urgency = data.get('urgency', 'normal') 
-    
+    urgency = data.get('urgency', 'normal')
+    tags_list = data.get('tags', [])
+    tags_str = ','.join(t.strip() for t in tags_list if t.strip()) if tags_list else None
+
     if not title:
         return jsonify({"error": "Task title is required"}), 400
 
     new_task = Task(
-        title=title, 
-        process_id=data.get('process_id'), 
+        title=title,
+        process_id=data.get('process_id'),
         due_date=due_date,
         user_id=current_user_id,
-        urgency=urgency 
-    ) 
+        urgency=urgency,
+        tags=tags_str
+    )
     
     db.session.add(new_task)
     db.session.commit()
@@ -647,34 +652,41 @@ def toggle_routine(routine_id):
         return jsonify({"error": str(e)}), 500
 
 @main_bp.route('/api/processes', methods=['POST'])
-@jwt_required()  
+@jwt_required()
 def create_process_manual():
     try:
-        
         current_user_id = int(get_jwt_identity())
-        
         data = request.json
         title = data.get('title')
-        
         if not title:
             return jsonify({"error": "Process title is required"}), 400
-
-        
         new_process = Process(
             title=title,
             description=data.get('description', ''),
             user_id=current_user_id
         )
-        
         db.session.add(new_process)
         db.session.commit()
-        
         return jsonify({
             "id": new_process.id,
             "title": new_process.title,
             "description": new_process.description
         }), 201
-        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@main_bp.route('/api/processes/<int:process_id>', methods=['DELETE'])
+@jwt_required()
+def delete_process(process_id):
+    try:
+        current_user_id = int(get_jwt_identity())
+        process = Process.query.filter_by(id=process_id, user_id=current_user_id).first()
+        if not process:
+            return jsonify({"error": "Process not found"}), 404
+        db.session.delete(process)
+        db.session.commit()
+        return jsonify({"message": "Process deleted"}), 200
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500

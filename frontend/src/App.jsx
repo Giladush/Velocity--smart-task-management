@@ -140,18 +140,19 @@ const handleLogout = () => {
     };
 
   
-  const handleAddTask = async (title, dueDate, urgency) => {
+  const handleAddTask = async (title, dueDate, urgency, tags = []) => {
   try {
     const res = await fetch('http://localhost:5000/api/tasks', {
       method: 'POST',
-      headers: { 
+      headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}` 
+        'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify({
         title: title,
         due_date: dueDate || null,
-        urgency: urgency || 'normal' 
+        urgency: urgency || 'normal',
+        tags: tags || []
       })
     });
     
@@ -260,6 +261,44 @@ const handleLogout = () => {
   }
 };
 
+const handleCreateProcess = async (title) => {
+  try {
+    const res = await fetch('http://localhost:5000/api/processes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ title })
+    });
+    if (res.ok) fetchData();
+  } catch (error) {
+    console.error("Error creating process:", error);
+  }
+};
+
+const handleDeleteProcess = async (processId) => {
+  try {
+    const res = await fetch(`http://localhost:5000/api/processes/${processId}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.ok) fetchData();
+  } catch (error) {
+    console.error("Error deleting process:", error);
+  }
+};
+
+const handleAddProcessTask = async (processId, title) => {
+  try {
+    const res = await fetch('http://localhost:5000/api/tasks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ title, process_id: processId })
+    });
+    if (res.ok) fetchData();
+  } catch (error) {
+    console.error("Error adding process task:", error);
+  }
+};
+
 const handleDeleteTask = async (taskId) => {
   try {
     
@@ -358,10 +397,14 @@ const handleDeleteTask = async (taskId) => {
 
         {/* --- מסך תהליכים --- */}
         {activeView === 'processes' && (
-          <ProcessBoard 
+          <ProcessBoard
             processes={processes}
             selectedProcessId={selectedProcessId}
-            onUpdateTask={handleUpdateTask}  
+            onUpdateTask={handleUpdateTask}
+            onDeleteTask={handleDeleteTask}
+            onCreateProcess={handleCreateProcess}
+            onDeleteProcess={handleDeleteProcess}
+            onAddProcessTask={handleAddProcessTask}
           />
         )}
 

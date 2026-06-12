@@ -51,8 +51,10 @@ class Task(db.Model):
     urgency = db.Column(db.String(20), default='normal')
     status = db.Column(db.String(50), default="To Do")
     
+    tags = db.Column(db.String(200), nullable=True)
+
     process_id = db.Column(db.Integer, db.ForeignKey('process.id'), nullable=True)
-    
+
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
 class CompletionLog(db.Model):

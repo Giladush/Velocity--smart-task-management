@@ -9,7 +9,7 @@ import google.generativeai as genai
 from dotenv import load_dotenv
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from datetime import timedelta
-from sqlalchemy import func
+from sqlalchemy import func, text
 from routes import main_bp
 from calendar_routes import calendar_bp
 
@@ -54,5 +54,10 @@ app.register_blueprint(calendar_bp)
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
+        try:
+            db.session.execute(text('ALTER TABLE task ADD COLUMN tags VARCHAR(200)'))
+            db.session.commit()
+        except Exception:
+            pass  # column already exists
     app.run(debug=True, port=5000)
 
