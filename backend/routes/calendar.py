@@ -22,8 +22,9 @@ client_config = {
     }
 }
 
-_pkce_store = {}        # state -> code_verifier
-_credentials_store = {} # token -> credentials dict
+_pkce_store = {}
+_credentials_store = {}
+
 
 def create_google_flow(autogenerate_code_verifier=False):
     return Flow.from_client_config(
@@ -89,20 +90,13 @@ def create_calendar_event():
         event = {
             'summary': task_data.get('title', 'משימה חדשה מ-Velocity'),
             'description': task_data.get('description', 'נוצר אוטומטית דרך המערכת.'),
-            'start': {
-                'dateTime': task_data.get('start_time'),
-                'timeZone': 'Asia/Jerusalem',
-            },
-            'end': {
-                'dateTime': task_data.get('end_time'),
-                'timeZone': 'Asia/Jerusalem',
-            },
+            'start': {'dateTime': task_data.get('start_time'), 'timeZone': 'Asia/Jerusalem'},
+            'end': {'dateTime': task_data.get('end_time'), 'timeZone': 'Asia/Jerusalem'},
         }
         created_event = service.events().insert(calendarId='primary', body=event).execute()
         return jsonify({
             "message": "Event created successfully!",
             "calendar_link": created_event.get('htmlLink')
         }), 201
-
     except Exception as e:
         return jsonify({"error": f"Failed to create event: {str(e)}"}), 500

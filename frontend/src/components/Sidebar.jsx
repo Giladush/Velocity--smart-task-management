@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-export default function Sidebar({ activeView, setActiveView, streak, onSendMessage, isThinking, handleLogout, onOpenSummary }) {
+export default function Sidebar({ activeView, setActiveView, streak, onSendMessage, isThinking, handleLogout, onOpenSummary, taskCount, processCount, routineCount }) {
   const [chatInput, setChatInput] = useState('');
 
   const handleChatSubmit = (e) => {
@@ -50,6 +50,45 @@ export default function Sidebar({ activeView, setActiveView, streak, onSendMessa
           </button>
 
           <button
+            onClick={() => setActiveView('tasks')}
+            className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
+              activeView === 'tasks' ? 'bg-indigo-50 text-indigo-600 shadow-sm' : 'text-slate-500 hover:bg-slate-50'
+            }`}
+          >
+            <span className="text-lg">📋</span>
+            <span className="flex-1 text-left">Task Board</span>
+            {taskCount > 0 && (
+              <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${activeView === 'tasks' ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-500'}`}>{taskCount}</span>
+            )}
+          </button>
+
+          <button
+            onClick={() => setActiveView('processes')}
+            className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
+              activeView === 'processes' ? 'bg-indigo-50 text-indigo-600 shadow-sm' : 'text-slate-500 hover:bg-slate-50'
+            }`}
+          >
+            <span className="text-lg">🚀</span>
+            <span className="flex-1 text-left">Process Board</span>
+            {processCount > 0 && (
+              <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${activeView === 'processes' ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-500'}`}>{processCount}</span>
+            )}
+          </button>
+
+          <button
+            onClick={() => setActiveView('routines')}
+            className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
+              activeView === 'routines' ? 'bg-indigo-50 text-indigo-600 shadow-sm' : 'text-slate-500 hover:bg-slate-50'
+            }`}
+          >
+            <span className="text-lg">🔁</span>
+            <span className="flex-1 text-left">Daily Routines</span>
+            {routineCount > 0 && (
+              <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${activeView === 'routines' ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-500'}`}>{routineCount}</span>
+            )}
+          </button>
+
+          <button
             onClick={() => setActiveView('analytics')}
             className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
               activeView === 'analytics'
@@ -58,33 +97,6 @@ export default function Sidebar({ activeView, setActiveView, streak, onSendMessa
             }`}
           >
             <span className="text-lg">📈</span> Analytics
-          </button>
-
-          <button 
-            onClick={() => setActiveView('tasks')}
-            className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
-              activeView === 'tasks' ? 'bg-indigo-50 text-indigo-600 shadow-sm' : 'text-slate-500 hover:bg-slate-50'
-            }`}
-          >
-            <span className="text-lg">📋</span> Task Board
-          </button>
-          
-          <button 
-            onClick={() => setActiveView('processes')}
-            className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
-              activeView === 'processes' ? 'bg-indigo-50 text-indigo-600 shadow-sm' : 'text-slate-500 hover:bg-slate-50'
-            }`}
-          >
-            <span className="text-lg">🚀</span> Process Board
-          </button>
-          
-          <button 
-            onClick={() => setActiveView('routines')}
-            className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
-              activeView === 'routines' ? 'bg-indigo-50 text-indigo-600 shadow-sm' : 'text-slate-500 hover:bg-slate-50'
-            }`}
-          >
-            <span className="text-lg">🔁</span> Daily Routines
           </button>
         </nav>
 

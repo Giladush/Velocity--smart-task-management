@@ -1,55 +1,42 @@
-from flask import Flask, jsonify, request
+from flask import Flask
 from flask_cors import CORS
-from models import db, Task, Process, Routine, User, CompletionLog
-from datetime import date, timedelta, datetime
+from models import db
 import os
-import json
-import requests
 import google.generativeai as genai
 from dotenv import load_dotenv
-from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
+from flask_jwt_extended import JWTManager
 from datetime import timedelta
-from sqlalchemy import func, text
-from routes import main_bp
-from calendar_routes import calendar_bp
+from sqlalchemy import text
+from routes import auth_bp, tasks_bp, processes_bp, routines_bp, data_bp, calendar_bp
 
+load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY")
-# JWT
+
 app.config['JWT_SECRET_KEY'] = 'super-secret-stride-key-change-in-prod'
-app.config['JWT_TOKEN_LOCATION'] = ['headers']  # אומר לשרת לחפש את הטוקן בכותרות הבקשה
+app.config['JWT_TOKEN_LOCATION'] = ['headers']
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=30)
 jwt = JWTManager(app)
+
 CORS(app, supports_credentials=True, origins=['http://localhost:5173'])
 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///velocity.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 
-# API key
-load_dotenv()
 api_key = os.getenv("GEMINI_API_KEY")
-
-# setting up GenAI
 if api_key:
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-3-flash')
 else:
     print("Warning: GEMINI_API_KEY not found in .env file!")
 
-
-cached_quote = {
-    "text": "The secret of getting ahead is getting started.",
-    "author": "Mark Twain"
-}
-last_fetch_date = None
-
-
-app.register_blueprint(main_bp)
-
+app.register_blueprint(auth_bp)
+app.register_blueprint(tasks_bp)
+app.register_blueprint(processes_bp)
+app.register_blueprint(routines_bp)
+app.register_blueprint(data_bp)
 app.register_blueprint(calendar_bp)
-
 
 if __name__ == '__main__':
     with app.app_context():
@@ -60,4 +47,3 @@ if __name__ == '__main__':
         except Exception:
             pass  # column already exists
     app.run(debug=True, port=5000)
-

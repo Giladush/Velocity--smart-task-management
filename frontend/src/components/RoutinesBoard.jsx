@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-export default function RoutinesBoard() {
+export default function RoutinesBoard({ onDataChange }) {
   const [routines, setRoutines] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   
@@ -73,9 +73,10 @@ export default function RoutinesBoard() {
       await fetch(`http://localhost:5000/api/routines/${id}`, {
         method: 'DELETE',
       });
+      if (onDataChange) onDataChange();
     } catch (error) {
       console.error("Error deleting routine:", error);
-      fetchRoutines(); 
+      fetchRoutines();
     }
   };
 
@@ -113,7 +114,8 @@ export default function RoutinesBoard() {
       setIsAdding(false);
       
       
-      await fetchData(); 
+      await fetchRoutines();
+      if (onDataChange) onDataChange();
       
     } catch (error) {
       console.error("Error creating routine:", error);
@@ -222,6 +224,17 @@ export default function RoutinesBoard() {
                       <span className={`font-bold ${routine.completedToday ? 'text-orange-500' : 'text-slate-400'}`}>
                         {routine.streak} 🔥
                       </span>
+                    </div>
+                    <div className="flex gap-1 mt-2">
+                      {DAYS.map(day => (
+                        <span key={day} className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
+                          routine.frequency && routine.frequency.includes(day)
+                            ? 'bg-indigo-100 text-indigo-700'
+                            : 'bg-slate-100 text-slate-300'
+                        }`}>
+                          {day}
+                        </span>
+                      ))}
                     </div>
                   </div>
 
