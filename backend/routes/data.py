@@ -221,16 +221,19 @@ def chat_with_stride():
                               for r in Routine.query.filter_by(user_id=current_user_id).all()]
 
         prompt = f"""
-        You are Stride AI, an expert task manager and proactive smart assistant.
+        You are Stride AI — a warm, sharp, and proactive personal assistant who genuinely cares about helping the user move forward.
+        Your tone is friendly, direct, and encouraging — like a smart friend who knows productivity well, not a cold robot.
+        Always respond in fluent, natural Hebrew. Never sound robotic or overly formal.
         Today's date is: {today_str}.
         Current open tasks: {json.dumps(open_tasks, ensure_ascii=False)}
         Existing processes: {json.dumps(existing_processes, ensure_ascii=False)}
         Existing routines: {json.dumps(existing_routines, ensure_ascii=False)}
 
-        CRITICAL RULES FOR TASK PRESENTATION AND PRIORITIZATION:
-        1. NO TASK IDs: Never output the task ID (the numbers in parentheses) to the user. Refer to tasks purely by their text titles. For example, output "Submit forms" and never "Submit forms (45)".
-        2. PRIORITIZATION LOGIC: Always give the highest priority to bureaucratic, financial, medical, or administrative tasks (e.g., National Insurance / Bituah Leumi, banking, paying bills, government forms),
-        even if they are standalone tasks. Leisure, hobby, or recreational projects (e.g., baking bread, organizing a trip) must always receive a lower priority, regardless of how many sub-tasks they contain.
+        CRITICAL RULES:
+        1. NO TASK IDs: Never mention task IDs to the user. Use task titles only.
+        2. PRIORITIZATION: Bureaucratic, financial, medical, or administrative tasks always take top priority (e.g., National Insurance, banking, government forms, medical appointments). Leisure or hobby tasks are always lower priority.
+        3. ADVICE QUALITY: When giving advice, always consider ALL open tasks — not just one. Give a full picture: what to tackle first and why, what can wait, and any time-sensitive items. Be warm and specific, not generic.
+        4. TONE: Be warm and human. Use phrases like "אני ממליץ", "שים לב ש...", "הייתי מתחיל עם..." — make the user feel supported, not just informed.
 
         The user says: "{user_message}"
 
@@ -238,8 +241,8 @@ def chat_with_stride():
         CRITICAL RULE: If the user directly commands you to create, delete, or modify something, DO IT IMMEDIATELY using the correct intent. DO NOT ask for confirmation, even if a similar item already exists.
         You must respond ONLY with a valid JSON object in this exact format:
         {{
-          "reply": "Your conversational, helpful response in HEBREW.",
-          "intent": "ONE_OF: create_process, create_task, create_routine, delete_task, delete_tasks, delete_routine, filter, complete_tasks, advice, navigate, general_chat",
+          "reply": "Your conversational, warm response in HEBREW — 1-2 sentences max for non-advice intents.",
+          "intent": "ONE_OF: create_process, create_task, create_routine, delete_task, delete_tasks, delete_routine, filter, complete_tasks, advice, navigate, fetch_emails, general_chat",
           "payload": {{ ... see instructions below ... }}
         }}
 
@@ -252,8 +255,9 @@ def chat_with_stride():
         - if intent='delete_routine': payload = {{"routine_id": 123}} (find ID from Existing routines)
         - if intent='filter': payload = {{"filter_value": "next_X_days" or "custom" or "today", "days_count": int, "custom_date": "YYYY-MM-DD"}}
         - if intent='complete_tasks': payload = {{"target_date": "YYYY-MM-DD" or "today" or "all"}}
-        - if intent='advice': payload = {{"advice_text": "Detailed Markdown advice..."}}
+        - if intent='advice': payload = {{"advice_text": "Warm, comprehensive Markdown advice covering ALL tasks — priorities, reasoning, and encouragement."}}
         - if intent='navigate': payload = {{"view": "processes" or "tasks" or "routines", "process_id": int}}
+        - if intent='fetch_emails': (Use when user asks to fetch/search emails by topic, e.g. "משוך לי מיילים דחופים", "מיילים שקשורים לעבודה", "מיילים על הטיול") payload = {{"query": "the topic or category in Hebrew"}}
         - if intent='general_chat': payload = {{}}
         """
 
@@ -339,10 +343,10 @@ def chat_with_stride():
         elif intent == "complete_tasks":
             target_date = payload.get("target_date")
             if target_date == "all":
-                Task.query.filter_by(is_completed=False, user_id=current_user_id).update({"is_completed": True})
+                Task.query.filter_by(is_completed=False, user_id=current_user_id).update({"is_completed": True, "status": "Done"})
             else:
                 actual_date = today_str if target_date == "today" else target_date
-                Task.query.filter_by(due_date=actual_date, is_completed=False, user_id=current_user_id).update({"is_completed": True})
+                Task.query.filter_by(due_date=actual_date, is_completed=False, user_id=current_user_id).update({"is_completed": True, "status": "Done"})
             db.session.commit()
             action = {"type": "REFRESH_DATA"}
 
@@ -355,10 +359,98 @@ def chat_with_stride():
         elif intent == "advice":
             action = {"type": "SET_ADVICE", "payload": payload}
 
+        elif intent == "fetch_emails":
+            from routes.calendar import _credentials_store
+            from google.oauth2.credentials import Credentials
+            from googleapiclient.discovery import build as google_build
+
+            query = payload.get("query", "דחופים")
+            cal_token = data.get("cal_token")
+
+            if not cal_token or cal_token not in _credentials_store:
+                action = {"type": "SET_EMAILS", "payload": {"emails": [], "error": "not_connected"}}
+            else:
+                creds_data = _credentials_store[cal_token]
+                stored_scopes = creds_data.get('scopes') or []
+                if 'https://www.googleapis.com/auth/gmail.readonly' not in stored_scopes:
+                    action = {"type": "SET_EMAILS", "payload": {"emails": [], "error": "no_gmail_scope"}}
+                else:
+                    try:
+                        creds = Credentials(
+                            token=creds_data['token'],
+                            refresh_token=creds_data['refresh_token'],
+                            token_uri=creds_data['token_uri'],
+                            client_id=creds_data['client_id'],
+                            client_secret=creds_data['client_secret'],
+                            scopes=creds_data['scopes']
+                        )
+                        gmail = google_build('gmail', 'v1', credentials=creds)
+
+                        results = gmail.users().messages().list(
+                            userId='me',
+                            q=f'{query} in:inbox',
+                            maxResults=10
+                        ).execute()
+                        message_refs = results.get('messages', [])
+
+                        if not message_refs:
+                            action = {"type": "SET_EMAILS", "payload": {"emails": [], "query": query}}
+                        else:
+                            emails_raw = []
+                            for ref in message_refs[:8]:
+                                msg = gmail.users().messages().get(
+                                    userId='me', id=ref['id'],
+                                    format='metadata',
+                                    metadataHeaders=['Subject', 'From', 'Date']
+                                ).execute()
+                                headers = {h['name']: h['value'] for h in msg.get('payload', {}).get('headers', [])}
+                                emails_raw.append({
+                                    'id': ref['id'],
+                                    'subject': headers.get('Subject', '(ללא נושא)'),
+                                    'sender': headers.get('From', 'לא ידוע'),
+                                    'snippet': msg.get('snippet', '')
+                                })
+
+                            email_prompt = f"""
+                            For each of the following emails, write a single short sentence in Hebrew summarizing what it says or what action it requires.
+                            Return a JSON array with fields: id, subject, sender, summary.
+                            CRITICAL: All string values must be valid JSON — escape any double-quote characters inside strings with a backslash.
+
+                            Emails:
+                            {json.dumps(emails_raw, ensure_ascii=True)}
+                            """
+
+                            email_response = current_model.generate_content(
+                                email_prompt,
+                                generation_config=genai.GenerationConfig(response_mime_type="application/json")
+                            )
+                            try:
+                                summarized = json.loads(email_response.text)
+                            except json.JSONDecodeError:
+                                import re
+                                match = re.search(r'\[.*?\]', email_response.text, re.DOTALL)
+                                try:
+                                    summarized = json.loads(match.group()) if match else []
+                                except Exception:
+                                    summarized = []
+                            if isinstance(summarized, dict):
+                                summarized = summarized.get('emails', [])
+                            if not isinstance(summarized, list):
+                                summarized = []
+
+                            action = {"type": "SET_EMAILS", "payload": {"emails": summarized, "query": query}}
+                    except Exception as gmail_err:
+                        print(f"[Gmail Error] {gmail_err}")
+                        err_str = str(gmail_err)
+                        if 'accessNotConfigured' in err_str or 'not been used' in err_str:
+                            action = {"type": "SET_EMAILS", "payload": {"emails": [], "error": "api_not_enabled"}}
+                        else:
+                            action = {"type": "SET_EMAILS", "payload": {"emails": [], "error": "gmail_error"}}
+
         return jsonify({"reply": ai_reply, "action": action}), 200
 
     except Exception as e:
-        print(f"AI ERROR: {str(e)}")
         import traceback
         traceback.print_exc()
+        db.session.rollback()
         return jsonify({"error": "AI Processing Failed"}), 500

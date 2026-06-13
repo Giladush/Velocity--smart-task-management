@@ -31,7 +31,7 @@ export default function DailySummary({ closeModal, tasks, processes, username })
         <div className="p-6 border-b border-slate-100 bg-indigo-50/50 flex justify-between items-center">
           <div>
             <h2 className="text-2xl font-extrabold text-indigo-900">Daily Snapshot ☀️</h2>
-            <p className="text-sm text-indigo-600/80 mt-1 font-medium">Here's what's waiting for you today</p>
+            
           </div>
           
           <button 

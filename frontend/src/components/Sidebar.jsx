@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-export default function Sidebar({ activeView, setActiveView, streak, onSendMessage, isThinking, handleLogout, onOpenSummary, taskCount, processCount, routineCount, username }) {
+export default function Sidebar({ activeView, setActiveView, streak, onSendMessage, isThinking, handleLogout, onOpenSummary, taskCount, processCount, routineCount, username, aiReply }) {
   const [chatInput, setChatInput] = useState('');
 
   const handleChatSubmit = (e) => {
@@ -106,6 +106,12 @@ export default function Sidebar({ activeView, setActiveView, streak, onSendMessa
             <div className="p-2.5 border-b border-slate-200 bg-white/50 shrink-0">
               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider text-center">My AI Agent</p>
             </div>
+
+            {aiReply && (
+              <div className="px-3 py-2.5 text-sm text-slate-600 bg-indigo-50/60 border-b border-slate-100 leading-relaxed" dir="rtl">
+                {aiReply}
+              </div>
+            )}
 
             <form onSubmit={handleChatSubmit} className="p-2 bg-white shrink-0">
               <textarea 

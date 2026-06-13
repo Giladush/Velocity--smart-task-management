@@ -26,14 +26,6 @@ export default function KanbanBoard({
 
   const columns = ['To Do', 'In Progress', 'Done'];
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get('cal_token');
-    if (token) {
-      localStorage.setItem('cal_token', token);
-      window.history.replaceState({}, '', '/');
-    }
-  }, []);
 
   useEffect(() => {
     fetchDailyQuote().then(setQuote).catch(() => {});

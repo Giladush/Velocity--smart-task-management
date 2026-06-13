@@ -1,59 +1,145 @@
-AI-Powered Task & Goal Orchestrator (Fullstack Project) #
+# Velocity — AI-Powered Task Manager
 
-Overview ##
-This is a comprehensive Task and Goal Management platform designed to bridge the gap between "to-do lists" and "actual progress." By leveraging AI (Large Language Models), the system helps users break down complex goals into actionable tasks, provides smart prioritization, and acts as a productivity coach.
+A fullstack productivity app that combines task management, habit tracking, multi-step process planning, and an AI agent — all in one focused workspace.
 
-Key Features ##
-1. Goal & Task Management
--Hierarchical Structure: Create high-level Goals and decompose them into specific Tasks and Milestones.
+---
 
--Kanban Board: A dynamic drag-and-drop interface for managing task states (To-Do, In-Progress, Completed).
+## Features
 
--Progress Tracking: Visual progress bars for goals based on completed sub-tasks.
+### Task Management
+- **Kanban board** with drag-and-drop across To Do, In Progress, and Done columns
+- **List view** as an alternative to the board — toggle persists across sessions
+- Urgency levels (High / Normal / Low), due dates, and custom tags per task
+- Smart date filters: today, next N days, or a specific date
 
-2. AI Productivity Assistant
--Smart Breakdown: Tell the AI a goal (e.g., "Learn React in a month"), and it will automatically generate a structured task list.
+### Processes
+- Create structured, multi-step projects with sub-tasks
+- Visual progress bar per process based on completed tasks
+- Navigate directly to any process from the AI agent
 
--Natural Language Task Creation: Add tasks via chat (e.g., "Remind me to call the bank tomorrow at 10 AM").
+### Routines
+- Define recurring tasks by specific days of the week (e.g., Mon / Wed / Fri)
+- Individual streak counter per routine
+- Routines appear automatically on their scheduled days
 
--ontextual Advice: Ask the bot for tips on how to overcome "procrastination" or how to prioritize your current list.
+### AI Agent (Stride AI)
+A natural-language assistant in Hebrew that understands intent and acts on it:
+- **Create** tasks, routines, or full multi-step processes from a single sentence
+- **Delete** tasks or routines by name
+- **Complete** tasks in bulk (today's tasks, all tasks, or by date)
+- **Filter** the board by date range or specific day
+- **Navigate** to a specific process or view
+- **Advice** — gives a warm, comprehensive review of all open tasks with priorities and reasoning
 
-3. User Experience & Security
--Secure Authentication: Full User Registration and Login system using JWT (JSON Web Tokens).
+### Daily Snapshot
+A modal shown on login with a personalized greeting (morning / afternoon / evening) listing today's tasks and active routines.
 
--Responsive Design: Fully functional on Desktop and Mobile devices.
+### Analytics
+- Weekly task completion chart (last 7 days)
+- Per-process progress breakdown
+- Open tasks by priority level (High / Normal / Low)
 
--Real-time Feedback: Instant UI updates using modern State Management.
+### Streak System
+A daily streak that increments if at least one item was completed that day — counting standalone tasks, process tasks, and routines.
 
-Technical Stack ##
+### Google Calendar Integration
+- Connect your Google account via OAuth2
+- Create calendar events directly from the app
+
+### Personalization
+- Username collected at registration, displayed throughout the app
+- Personalized sidebar button, daily snapshot greeting, and routine view
+- Daily motivational quote (via ZenQuotes API)
+
+---
+
+## Tech Stack
+
 **Frontend**
-React.js (Vite): For a fast, component-based UI.
-
-Tailwind CSS: For modern, responsive styling.
-
-Zustand / Redux Toolkit: For global state management.
-
-React Query (Axios): For efficient server state and API fetching.
+- React 18 (Vite)
+- Tailwind CSS
+- react-beautiful-dnd (drag and drop)
 
 **Backend**
-Python (Flask): Robust RESTful API development.
-
-Flask-SQLAlchemy: ORM for database interactions.
-
-Flask-JWT-Extended: Handling secure authentication.
-
-OpenAI API / LangChain: Powering the AI intelligence and function calling.
+- Python / Flask
+- Flask Blueprints (modular route structure)
+- Flask-SQLAlchemy (ORM)
+- Flask-JWT-Extended (authentication)
+- Google Generative AI — Gemini (AI agent)
+- Google OAuth2 (Calendar integration)
 
 **Database**
-PostgreSQL / SQLite: Relational database for storing users, goals, and task logs.
+- SQLite
 
-Database Schema (Brief)
--The application uses a relational structure to ensure data integrity:
+---
 
--Users Table: Authentication details and user profiles.
+## Project Structure
 
--Goals Table: Long-term objectives linked to a specific user.
+```
+velocity-task-manager/
+├── backend/
+│   ├── app.py               # App factory, config, blueprint registration
+│   ├── models.py            # SQLAlchemy models: User, Task, Process, Routine, CompletionLog
+│   └── routes/
+│       ├── auth.py          # Register, login, /api/me
+│       ├── tasks.py         # CRUD for tasks, completion logging
+│       ├── processes.py     # Process and process-task management
+│       ├── routines.py      # Routine CRUD and daily toggle
+│       ├── data.py          # Aggregated data fetch, AI agent endpoint, analytics, quotes
+│       └── calendar.py      # Google Calendar OAuth2 and event creation
+└── frontend/
+    └── src/
+        ├── App.jsx                  # Root state, routing, event handlers
+        ├── services/api.js          # All API calls in one place
+        └── components/
+            ├── LandingPage.jsx
+            ├── Auth.jsx
+            ├── Sidebar.jsx          # Navigation, streak, AI chat input
+            ├── KanbanBoard.jsx      # Board/list toggle, filtering
+            ├── kanban/
+            │   ├── TaskCard.jsx
+            │   ├── ListView.jsx
+            │   └── TagPicker.jsx
+            ├── ProcessBoard.jsx
+            ├── RoutinesBoard.jsx
+            ├── DailySummary.jsx     # Login modal with today's tasks
+            └── Analytics.jsx
+```
 
--Tasks Table: Individual actions linked to a Goal (Foreign Key).
+---
 
--Chat Logs: History of AI interactions for context-aware conversations.
+## Getting Started
+
+### Backend
+
+```bash
+cd backend
+python -m venv venv
+venv\Scripts\activate       # Windows
+pip install -r requirements.txt
+python app.py
+```
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+The app runs at `http://localhost:5173` with the API at `http://localhost:5000`.
+
+---
+
+## Environment Variables
+
+Create a `.env` file in `/backend`:
+
+```
+SECRET_KEY=your_secret_key
+JWT_SECRET_KEY=your_jwt_secret
+GEMINI_API_KEY=your_gemini_api_key
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+```

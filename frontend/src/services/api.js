@@ -53,7 +53,7 @@ export const sendAIMessage = async (token, message) => {
   const res = await fetch(`${BASE}/api/chat`, {
     method: 'POST',
     headers: jsonHeaders(token),
-    body: JSON.stringify({ message })
+    body: JSON.stringify({ message, cal_token: localStorage.getItem('cal_token') || null })
   });
   return res.json();
 };
@@ -77,3 +77,8 @@ export const createCalendarEvent = (calToken, task) =>
 
 export const fetchDailyQuote = () =>
   fetch('http://127.0.0.1:5000/api/quote').then(r => r.json());
+
+export const fetchUrgentEmails = (calToken) =>
+  fetch('http://127.0.0.1:5000/api/gmail/urgent', {
+    headers: { 'X-Calendar-Token': calToken || '' }
+  }).then(r => r.json());

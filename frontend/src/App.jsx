@@ -7,6 +7,7 @@ import Auth from './components/Auth';
 import LandingPage from './components/LandingPage';
 import DailySummary from './components/DailySummary';
 import Analytics from './components/Analytics';
+import EmailsPanel from './components/EmailsPanel';
 import {
   fetchAllData, addTask, updateTask, deleteTask,
   toggleRoutine, deleteRoutine,
@@ -16,6 +17,9 @@ import {
 
 function App() {
   const [aiAdvice, setAiAdvice] = useState(null);
+  const [aiReply, setAiReply] = useState('');
+  const [emailsData, setEmailsData] = useState(null);
+  const [googleConnected, setGoogleConnected] = useState(false);
   const [selectedProcessId, setSelectedProcessId] = useState(null);
   const [activeView, setActiveView] = useState('tasks');
   const [streak, setStreak] = useState(0);
@@ -37,6 +41,17 @@ function App() {
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, [token]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const calToken = params.get('cal_token');
+    if (calToken) {
+      localStorage.setItem('cal_token', calToken);
+      window.history.replaceState({}, '', '/');
+      setGoogleConnected(true);
+      setTimeout(() => setGoogleConnected(false), 4000);
+    }
+  }, []);
   const [showSummary, setShowSummary] = useState(false);
   const [routineCount, setRoutineCount] = useState(0);
 
@@ -90,11 +105,25 @@ function App() {
 
   const handleAISend = async (userMessage) => {
     setIsThinking(true);
+    setAiReply('');
     try {
       const data = await sendAIMessage(token, userMessage);
 
       if (data.action) {
         const { type, payload } = data.action;
+
+        if (type === 'SET_ADVICE') {
+          setAiAdvice(payload.advice_text);
+          return;
+        }
+
+        if (type === 'SET_EMAILS') {
+          setEmailsData(payload);
+          return;
+        }
+
+        if (data.reply) setAiReply(data.reply);
+
         switch (type) {
           case 'SET_FILTER':
             if (payload.filter_value === 'next_X_days') {
@@ -115,15 +144,14 @@ function App() {
             setActiveView(payload.view);
             if (payload.process_id) setSelectedProcessId(payload.process_id);
             break;
-          case 'SET_ADVICE':
-            setAiAdvice(payload.advice_text);
-            break;
           default:
             console.warn('Action type not handled:', type);
         }
+      } else if (data.reply) {
+        setAiReply(data.reply);
       }
     } catch (error) {
-      console.error('AI Error:', error);
+      setAiReply('שגיאה בתקשורת עם הסוכן. נסה שוב.');
     } finally {
       setIsThinking(false);
     }
@@ -245,6 +273,12 @@ function App() {
   return (
     <div className="flex h-screen bg-slate-50 text-slate-900 font-sans overflow-hidden">
 
+      {googleConnected && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-emerald-600 text-white text-sm font-semibold px-5 py-3 rounded-xl shadow-lg flex items-center gap-2 animate-fade-in">
+          <span>✓</span> חשבון גוגל חובר בהצלחה — עכשיו אפשר לבקש מיילים מהסוכן
+        </div>
+      )}
+
       {showSummary && (
         <DailySummary
           closeModal={() => setShowSummary(false)}
@@ -260,6 +294,7 @@ function App() {
         streak={streak}
         onSendMessage={handleAISend}
         isThinking={isThinking}
+        aiReply={aiReply}
         handleLogout={handleLogout}
         onOpenSummary={() => setShowSummary(true)}
         taskCount={tasks.filter(t => !t.is_routine && !t.is_completed).length}
@@ -284,6 +319,22 @@ function App() {
                 </div>
                 <p className="text-slate-700 whitespace-pre-line text-sm leading-relaxed">{aiAdvice}</p>
               </div>
+            )}
+
+            {emailsData && (
+              <EmailsPanel
+                emails={emailsData.emails || []}
+                query={emailsData.query || ''}
+                error={emailsData.error}
+                onAddAsTask={(summary) => {
+                  handleAddTask(summary, null, 'normal', []);
+                  setEmailsData(prev => ({
+                    ...prev,
+                    emails: prev.emails.filter(e => e.summary !== summary && e.subject !== summary)
+                  }));
+                }}
+                onClose={() => setEmailsData(null)}
+              />
             )}
 
             <KanbanBoard
