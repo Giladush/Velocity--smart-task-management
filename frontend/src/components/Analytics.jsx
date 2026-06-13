@@ -30,23 +30,22 @@ export default function Analytics({ token }) {
   if (loading) return <div className="flex-1 p-8 flex items-center justify-center text-slate-500 font-medium">מכין את הנתונים שלך... ⏳</div>;
   if (!data) return <div className="flex-1 p-8 flex items-center justify-center text-red-500 font-medium">אופס! הייתה בעיה בטעינת הנתונים.</div>;
 
-  const priorities = data.open_tasks_by_priority || { high: 0, normal: 0, low: 0 };
-  const totalOpenTasks = priorities.high + priorities.normal + priorities.low || 1; 
-  
-  const highPct = (priorities.high / totalOpenTasks) * 100;
-  const normalPct = (priorities.normal / totalOpenTasks) * 100;
-  const lowPct = (priorities.low / totalOpenTasks) * 100;
+  const statuses = data.tasks_by_status || { todo: 0, in_progress: 0, done: 0 };
+  const totalTasks = statuses.todo + statuses.in_progress + statuses.done || 1;
+
+  const todoPct      = (statuses.todo        / totalTasks) * 100;
+  const inProgressPct = (statuses.in_progress / totalTasks) * 100;
+  const donePct      = (statuses.done         / totalTasks) * 100;
 
   const radius = 50;
   const circumference = 2 * Math.PI * radius;
-  
-  const highDash = (highPct / 100) * circumference;
-  const normalDash = (normalPct / 100) * circumference;
-  const lowDash = (lowPct / 100) * circumference;
 
+  const todoDash       = (todoPct       / 100) * circumference;
+  const inProgressDash = (inProgressPct / 100) * circumference;
+  const doneDash       = (donePct       / 100) * circumference;
 
-  const normalOffset = -highDash;
-  const lowOffset = -(highDash + normalDash);
+  const inProgressOffset = -todoDash;
+  const doneOffset       = -(todoDash + inProgressDash);
 
   return (
     <div className="flex-1 p-8 overflow-y-auto w-full">
@@ -62,45 +61,50 @@ export default function Analytics({ token }) {
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 flex flex-col items-center justify-center text-center transition-all hover:shadow-md">
             <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">Overall Completion Rate</h3>
             
-            <div className="relative w-40 h-40 flex items-center justify-center mb-2">
+            <div className="relative w-40 h-40 flex items-center justify-center mb-4">
               <svg className="w-full h-full transform -rotate-90" viewBox="0 0 120 120">
-                
                 <circle cx="60" cy="60" r={radius} fill="transparent" stroke="#f1f5f9" strokeWidth="12" />
-                
-                
-                {highPct > 0 && (
-                  <circle 
-                    cx="60" cy="60" r={radius} fill="transparent" stroke="#ef4444" strokeWidth="12"
-                    strokeDasharray={`${highDash} ${circumference}`}
+                {todoPct > 0 && (
+                  <circle
+                    cx="60" cy="60" r={radius} fill="transparent" stroke="#94a3b8" strokeWidth="12"
+                    strokeDasharray={`${todoDash} ${circumference}`}
                     strokeDashoffset={0}
                   />
                 )}
-                
-                
-                {normalPct > 0 && (
-                  <circle 
-                    cx="60" cy="60" r={radius} fill="transparent" stroke="#eab308" strokeWidth="12"
-                    strokeDasharray={`${normalDash} ${circumference}`}
-                    strokeDashoffset={normalOffset}
+                {inProgressPct > 0 && (
+                  <circle
+                    cx="60" cy="60" r={radius} fill="transparent" stroke="#f97316" strokeWidth="12"
+                    strokeDasharray={`${inProgressDash} ${circumference}`}
+                    strokeDashoffset={inProgressOffset}
                   />
                 )}
-                
-                
-                {lowPct > 0 && (
-                  <circle 
+                {donePct > 0 && (
+                  <circle
                     cx="60" cy="60" r={radius} fill="transparent" stroke="#22c55e" strokeWidth="12"
-                    strokeDasharray={`${lowDash} ${circumference}`}
-                    strokeDashoffset={lowOffset}
+                    strokeDasharray={`${doneDash} ${circumference}`}
+                    strokeDashoffset={doneOffset}
                   />
                 )}
               </svg>
-              
               <div className="absolute flex flex-col items-center justify-center">
                 <span className="text-4xl font-extrabold text-indigo-600">{data.overall_progress}%</span>
               </div>
             </div>
-            
-            <p className="text-xs text-slate-500">Out of all tasks in the system</p>
+
+            <div className="flex flex-col gap-1.5 text-xs font-semibold text-slate-500 w-full px-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-slate-400 inline-block" />To Do</div>
+                <span className="text-slate-700">{statuses.todo}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-orange-400 inline-block" />In Progress</div>
+                <span className="text-slate-700">{statuses.in_progress}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block" />Done</div>
+                <span className="text-slate-700">{statuses.done}</span>
+              </div>
+            </div>
           </div>
 
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 lg:col-span-2 transition-all hover:shadow-md">

@@ -1,6 +1,13 @@
 import React from 'react';
 
-export default function DailySummary({ closeModal, tasks, processes }) {
+const getGreeting = () => {
+  const h = new Date().getHours();
+  if (h >= 5 && h < 12) return 'Good morning';
+  if (h >= 12 && h < 18) return 'Good afternoon';
+  return 'Good evening';
+};
+
+export default function DailySummary({ closeModal, tasks, processes, username }) {
   
   const now = new Date();
   const year = now.getFullYear();
@@ -24,7 +31,7 @@ export default function DailySummary({ closeModal, tasks, processes }) {
         <div className="p-6 border-b border-slate-100 bg-indigo-50/50 flex justify-between items-center">
           <div>
             <h2 className="text-2xl font-extrabold text-indigo-900">Daily Snapshot ☀️</h2>
-            <p className="text-sm text-indigo-600/80 mt-1 font-medium">Here's what's waiting for you today</p>
+            
           </div>
           
           <button 
@@ -39,7 +46,13 @@ export default function DailySummary({ closeModal, tasks, processes }) {
         </div>
 
         <div className="p-6 overflow-y-auto flex flex-col gap-6">
-          
+
+          {(todaysRoutines.length > 0 || allTodaysTasks.length > 0) && (
+            <p className="text-base font-semibold text-indigo-700">
+              {getGreeting()}{username ? `, ${username}` : ''}! Here are your tasks for today.
+            </p>
+          )}
+
           {todaysRoutines.length > 0 && (
             <div>
               <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">שגרות</h3>
@@ -71,8 +84,10 @@ export default function DailySummary({ closeModal, tasks, processes }) {
           {todaysRoutines.length === 0 && allTodaysTasks.length === 0 && (
             <div className="text-center py-8">
               <div className="text-4xl mb-3">🎉</div>
-              <h3 className="text-lg font-bold text-slate-700">All clear for today!</h3>
-              <p className="text-slate-500">No open tasks for today! Perfect time to push forward with your processes, or just take a well-deserved break.</p>
+              <h3 className="text-lg font-bold text-slate-700">
+                {getGreeting()}{username ? `, ${username}` : ''}! All clear for today.
+              </h3>
+              <p className="text-slate-500 mt-2">Perfect time to push forward with your processes, or just take a well-deserved break.</p>
             </div>
           )}
 

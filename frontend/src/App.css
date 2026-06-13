@@ -182,3 +182,23 @@
     border-right-color: var(--border);
   }
 }
+
+.btn-google-calendar {
+  background-color: transparent; /* רקע שקוף */
+  border: 1px solid #e0e0e0;     /* מסגרת עדינה שמתאימה לעיצוב שלך */
+  border-radius: 50%;            /* הופך את הכפתור לעיגול */
+  width: 40px;                   /* גודל אחיד */
+  height: 40px;
+  font-size: 1.2rem;             /* גודל האימוג'י */
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  margin-left: 10px;             /* רווח קטן מכפתור ההוספה */
+}
+
+.btn-google-calendar:hover {
+  background-color: #f5f5f5;     /* הצללה קלה בריחוף */
+  border-color: #d0d0d0;
+}

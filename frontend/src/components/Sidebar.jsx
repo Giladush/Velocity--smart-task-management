@@ -1,21 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
+import AgentChatBox from './AgentChatBox';
+import GlowHalo from './animations/GlowHalo';
 
-export default function Sidebar({ activeView, setActiveView, streak, onSendMessage, isThinking, handleLogout, onOpenSummary }) {
+export default function Sidebar({ activeView, setActiveView, streak, onSendMessage, isThinking, handleLogout, onOpenSummary, taskCount, processCount, routineCount, username, aiReply, onStreakClick, onSendOrigin }) {
   const [chatInput, setChatInput] = useState('');
+  const streakRef = useRef(null);
 
-  const handleChatSubmit = (e) => {
-    if (e && e.preventDefault) e.preventDefault();
-    if (!chatInput.trim() || isThinking) return;
-    onSendMessage(chatInput);
-    setChatInput('');
+  const fireStreak = () => {
+    if (!streakRef.current || !onStreakClick) return;
+    const r = streakRef.current.getBoundingClientRect();
+    onStreakClick({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
   };
 
-  
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleChatSubmit(e);
-    }
+  const handleChatSubmit = (origin) => {
+    if (!chatInput.trim() || isThinking) return;
+    if (onSendOrigin) onSendOrigin(origin);
+    onSendMessage(chatInput);
+    setChatInput('');
   };
 
   return (
@@ -31,7 +32,11 @@ export default function Sidebar({ activeView, setActiveView, streak, onSendMessa
         
         
         <div className="p-3 shrink-0">
-          <div className="bg-gradient-to-br from-indigo-50 to-white p-3 rounded-2xl border border-indigo-100 shadow-sm flex items-center gap-3">
+          <div
+            ref={streakRef}
+            onClick={fireStreak}
+            className="bg-gradient-to-br from-indigo-50 to-white p-3 rounded-2xl border border-indigo-100 shadow-sm flex items-center gap-3 cursor-pointer hover:shadow-md transition-shadow"
+          >
             <div className="text-2xl">🔥</div>
             <div>
               <p className="text-sm font-bold text-indigo-900">{streak} Day Streak</p>
@@ -46,7 +51,46 @@ export default function Sidebar({ activeView, setActiveView, streak, onSendMessa
             onClick={onOpenSummary}
             className="flex items-center gap-3 px-4 py-2.5 bg-indigo-50/50 text-indigo-700 rounded-xl hover:bg-indigo-100 hover:shadow-sm text-sm font-bold transition-all border border-indigo-100/30"
           >
-            <span className="text-lg">☀️</span> Daily Summary
+            <span className="text-lg">☀️</span> {username ? `${username}'s Daily Snapshot` : 'Daily Snapshot'}
+          </button>
+
+          <button
+            onClick={() => setActiveView('tasks')}
+            className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
+              activeView === 'tasks' ? 'bg-indigo-50 text-indigo-600 shadow-sm' : 'text-slate-500 hover:bg-slate-50'
+            }`}
+          >
+            <span className="text-lg">📋</span>
+            <span className="flex-1 text-left">My Tasks</span>
+            {taskCount > 0 && (
+              <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${activeView === 'tasks' ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-500'}`}>{taskCount}</span>
+            )}
+          </button>
+
+          <button
+            onClick={() => setActiveView('processes')}
+            className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
+              activeView === 'processes' ? 'bg-indigo-50 text-indigo-600 shadow-sm' : 'text-slate-500 hover:bg-slate-50'
+            }`}
+          >
+            <span className="text-lg">🚀</span>
+            <span className="flex-1 text-left">My Processes</span>
+            {processCount > 0 && (
+              <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${activeView === 'processes' ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-500'}`}>{processCount}</span>
+            )}
+          </button>
+
+          <button
+            onClick={() => setActiveView('routines')}
+            className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
+              activeView === 'routines' ? 'bg-indigo-50 text-indigo-600 shadow-sm' : 'text-slate-500 hover:bg-slate-50'
+            }`}
+          >
+            <span className="text-lg">🔁</span>
+            <span className="flex-1 text-left">My Routines</span>
+            {routineCount > 0 && (
+              <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${activeView === 'routines' ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-500'}`}>{routineCount}</span>
+            )}
           </button>
 
           <button
@@ -59,33 +103,6 @@ export default function Sidebar({ activeView, setActiveView, streak, onSendMessa
           >
             <span className="text-lg">📈</span> Analytics
           </button>
-
-          <button 
-            onClick={() => setActiveView('tasks')}
-            className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
-              activeView === 'tasks' ? 'bg-indigo-50 text-indigo-600 shadow-sm' : 'text-slate-500 hover:bg-slate-50'
-            }`}
-          >
-            <span className="text-lg">📋</span> Task Board
-          </button>
-          
-          <button 
-            onClick={() => setActiveView('processes')}
-            className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
-              activeView === 'processes' ? 'bg-indigo-50 text-indigo-600 shadow-sm' : 'text-slate-500 hover:bg-slate-50'
-            }`}
-          >
-            <span className="text-lg">🚀</span> Process Board
-          </button>
-          
-          <button 
-            onClick={() => setActiveView('routines')}
-            className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
-              activeView === 'routines' ? 'bg-indigo-50 text-indigo-600 shadow-sm' : 'text-slate-500 hover:bg-slate-50'
-            }`}
-          >
-            <span className="text-lg">🔁</span> Daily Routines
-          </button>
         </nav>
 
         
@@ -95,21 +112,23 @@ export default function Sidebar({ activeView, setActiveView, streak, onSendMessa
               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider text-center">My AI Agent</p>
             </div>
 
-            <form onSubmit={handleChatSubmit} className="p-2 bg-white shrink-0">
-              <textarea 
-                disabled={isThinking}
-                placeholder="What's next? Add a task, break a goal, or just consult... 🤖" 
-                rows="3"
-                className={`w-full p-2 text-sm rounded-lg bg-slate-100 focus:outline-none transition-all duration-300 resize-none ${
-                  isThinking 
-                    ? 'ring-2 ring-indigo-400 shadow-[0_0_10px_rgba(99,102,241,0.3)] animate-pulse' 
-                    : 'focus:ring-2 focus:ring-indigo-500'
-                }`}
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-              />
-            </form>
+<div className="p-3 bg-white shrink-0">
+              <GlowHalo
+                tone={['#7dd3fc', '#a5b4fc', '#c4b5fd']}
+                glow={isThinking ? 'medium' : 'soft'}
+                speed={isThinking ? 1 : 0.5}
+                radius={12}
+                spread={isThinking ? 14 : 0}
+              >
+                <AgentChatBox
+                  value={chatInput}
+                  onChange={setChatInput}
+                  onSubmit={handleChatSubmit}
+                  thinking={isThinking}
+                  placeholder="Break down a goal…"
+                />
+              </GlowHalo>
+            </div>
           </div>
         </div>
       </div>

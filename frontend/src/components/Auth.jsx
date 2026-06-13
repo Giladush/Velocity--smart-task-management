@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 
-export default function Auth({ setToken }) {
-  const [isLogin, setIsLogin] = useState(true);
+export default function Auth({ setToken, setUsername, initialMode = 'login' }) {
+  const [isLogin, setIsLogin] = useState(initialMode !== 'signup');
   const [formData, setFormData] = useState({ username: '', email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -34,9 +34,10 @@ export default function Auth({ setToken }) {
       }
 
       if (isLogin) {
-        
         localStorage.setItem('stride_token', data.access_token);
+        localStorage.setItem('stride_username', data.username);
         setToken(data.access_token);
+        if (setUsername) setUsername(data.username);
       } else {
         
         setIsLogin(true);
