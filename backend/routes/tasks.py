@@ -47,13 +47,13 @@ def update_task(task_id):
     process_completion = False
     new_is_completed = task.is_completed
 
-    if 'status' in data:
-        task.status = data['status']
-        new_is_completed = (data['status'] == 'Done')
-        process_completion = True
-    elif 'is_completed' in data:
+    if 'is_completed' in data:
         new_is_completed = data['is_completed']
         task.status = "Done" if new_is_completed else "To Do"
+        process_completion = True
+    elif 'status' in data:
+        task.status = data['status']
+        new_is_completed = (data['status'] == 'Done')
         process_completion = True
 
     if process_completion:

@@ -4,15 +4,17 @@ export default function ProcessBoard({ processes, selectedProcessId, onUpdateTas
   const [expandedId, setExpandedId] = useState(null);
   const [highlightedId, setHighlightedId] = useState(null);
   const processRefs = useRef({});
+  const scrolledToRef = useRef(null);
   const [newProcessTitle, setNewProcessTitle] = useState('');
   const [addingStepToId, setAddingStepToId] = useState(null);
   const [newStepTitle, setNewStepTitle] = useState('');
 
   useEffect(() => {
-    if (selectedProcessId) {
+    if (selectedProcessId && selectedProcessId !== scrolledToRef.current) {
       const targetId = Number(selectedProcessId);
       const isProcessLoaded = processes.some(p => Number(p.id) === targetId);
       if (isProcessLoaded) {
+        scrolledToRef.current = selectedProcessId;
         setExpandedId(targetId);
         setTimeout(() => {
           const el = processRefs.current[targetId];

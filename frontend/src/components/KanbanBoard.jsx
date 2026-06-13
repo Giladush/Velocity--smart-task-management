@@ -7,7 +7,7 @@ import { connectGoogleCalendar, createCalendarEvent, fetchDailyQuote } from '../
 
 export default function KanbanBoard({
   tasks, onAddTask, onUpdateTask, onDeleteTask, onDragEnd,
-  activeFilter, setActiveFilter, customDate, setCustomDate, customDaysCount
+  activeFilter, setActiveFilter, customDate, setCustomDate, customDaysCount, onToast
 }) {
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDeadline, setNewTaskDeadline] = useState('');
@@ -126,7 +126,7 @@ export default function KanbanBoard({
     try {
       const data = await connectGoogleCalendar();
       if (data.auth_url) window.location.href = data.auth_url;
-      else alert('שגיאה בקבלת קישור ההתחברות לגוגל');
+      else onToast?.('Failed to get Google Calendar link', 'error');
     } catch (error) {
       console.error('Network error:', error);
     }
@@ -137,11 +137,11 @@ export default function KanbanBoard({
       const res = await createCalendarEvent(localStorage.getItem('cal_token'), task);
       const data = await res.json();
       if (res.ok) {
-        alert('המשימה נוספה ליומן בהצלחה!');
+        onToast?.('Task saved to Google Calendar successfully');
         if (data.calendar_link) window.open(data.calendar_link, '_blank');
       } else {
-        if (res.status === 401) alert('עליך לחבר את חשבון הגוגל שלך קודם!');
-        else alert('שגיאה ביצירת האירוע: ' + data.error);
+        if (res.status === 401) onToast?.('Please connect your Google account first', 'error');
+        else onToast?.('Failed to create calendar event' + (data.error ? ': ' + data.error : ''), 'error');
       }
     } catch (error) {
       console.error('Failed to add event:', error);
@@ -233,7 +233,7 @@ export default function KanbanBoard({
       if (a.urgency === 'low' && b.urgency !== 'low') return -1;
       if (a.urgency !== 'low' && b.urgency === 'low') return 1;
     }
-    return 0;
+    return b.id - a.id;
   };
 
   const sortComparator = buildSortComparator(todayStr, tomorrowStr, nextWeekStr);
@@ -328,7 +328,7 @@ export default function KanbanBoard({
                         if (a.is_routine && !b.is_routine) return -1;
                         if (!a.is_routine && b.is_routine) return 1;
                       }
-                      return 0;
+                      return b.id - a.id;
                     });
 
                     return (

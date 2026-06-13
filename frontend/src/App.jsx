@@ -8,11 +8,11 @@ import LandingPage from './components/LandingPage';
 import DailySummary from './components/DailySummary';
 import Analytics from './components/Analytics';
 import EmailsPanel from './components/EmailsPanel';
-import StreakBurst from './components/StreakBurst';
-import StardustOrb from './components/StardustOrb';
+import StreakBurst from './components/animations/StreakBurst';
+import StardustOrb from './components/animations/StardustOrb';
 import AgentInsights from './components/AgentInsights';
 import EmailDigest from './components/EmailDigest';
-import GlowHalo from './components/GlowHalo';
+import GlowHalo from './components/animations/GlowHalo';
 import {
   fetchAllData, addTask, updateTask, deleteTask,
   toggleRoutine, deleteRoutine,
@@ -38,6 +38,8 @@ function App() {
   const [username, setUsername] = useState(localStorage.getItem('stride_username') || '');
   const [preAuthView, setPreAuthView] = useState('landing');
   const [authMode, setAuthMode] = useState('login');
+  const [toast, setToast] = useState(null);
+  const toastTimer = useRef(null);
   const [streakBurst, setStreakBurst] = useState(null);
   const [advicePhase, setAdvicePhase] = useState('idle'); // idle | flying | open | closing
   const [adviceOrigin, setAdviceOrigin] = useState({ x: 0, y: 0 });
@@ -103,6 +105,12 @@ function App() {
     } catch (error) {
       console.error('Error fetching data:', error);
     }
+  };
+
+  const showToast = (message, type = 'success') => {
+    clearTimeout(toastTimer.current);
+    setToast({ message, type });
+    toastTimer.current = setTimeout(() => setToast(null), 4000);
   };
 
   const handleLogout = () => {
@@ -193,11 +201,9 @@ function App() {
         const res = await toggleRoutine(actualRoutineId);
         if (res.ok) fetchData();
       } else {
-        const res = await updateTask(token, task.id, {
-          is_completed: task.is_completed,
-          title: task.title,
-          status: task.status
-        });
+        const payload = { is_completed: task.is_completed, title: task.title };
+        if (!task.process_id) payload.status = task.status;
+        const res = await updateTask(token, task.id, payload);
         if (res.ok) fetchData();
       }
     } catch (error) {
@@ -293,9 +299,18 @@ function App() {
   return (
     <div className="flex h-screen bg-slate-50 text-slate-900 font-sans overflow-hidden">
 
+      {toast && (
+        <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-[9999] text-sm font-semibold px-5 py-3 rounded-xl shadow-lg flex items-center gap-2 animate-fade-in ${
+          toast.type === 'error' ? 'bg-red-500 text-white' : 'bg-emerald-600 text-white'
+        }`}>
+          <span>{toast.type === 'error' ? '✕' : '✓'}</span>
+          {toast.message}
+        </div>
+      )}
+
       {googleConnected && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-emerald-600 text-white text-sm font-semibold px-5 py-3 rounded-xl shadow-lg flex items-center gap-2 animate-fade-in">
-          <span>✓</span> חשבון גוגל חובר בהצלחה — עכשיו אפשר לבקש מיילים מהסוכן
+          <span>✓</span> Google account connected successfully
         </div>
       )}
 
@@ -389,6 +404,7 @@ function App() {
                       ...prev,
                       emails: prev.emails.filter(e => e.summary !== summary && e.subject !== summary)
                     }));
+                    showToast('Email added to task board successfully');
                   }}
                   onClose={() => setEmailsData(null)}
                 />
@@ -406,6 +422,7 @@ function App() {
               customDaysCount={customDaysCount}
               setActiveFilter={setActiveFilter}
               setCustomDate={setCustomDate}
+              onToast={showToast}
             />
           </div>
         )}

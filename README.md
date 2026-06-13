@@ -30,6 +30,7 @@ A natural-language assistant in Hebrew that understands intent and acts on it:
 - **Filter** the board by date range or specific day
 - **Navigate** to a specific process or view
 - **Advice** — gives a warm, comprehensive review of all open tasks with priorities and reasoning
+- **Emails** — fetches emails from Gmail on demand based on the user's request and displays them in a dedicated panel; each email can be converted into a task with one click
 
 ### Daily Snapshot
 A modal shown on login with a personalized greeting (morning / afternoon / evening) listing today's tasks and active routines.
@@ -42,9 +43,10 @@ A modal shown on login with a personalized greeting (morning / afternoon / eveni
 ### Streak System
 A daily streak that increments if at least one item was completed that day — counting standalone tasks, process tasks, and routines.
 
-### Google Calendar Integration
-- Connect your Google account via OAuth2
-- Create calendar events directly from the app
+### Google Integration
+- Connect your Google account via OAuth2 (single auth flow covers both services)
+- **Calendar** — create events directly from any task in the app
+- **Gmail** — fetch emails on demand through the AI agent and turn them into tasks
 
 ### Personalization
 - Username collected at registration, displayed throughout the app
@@ -103,7 +105,16 @@ velocity-task-manager/
             ├── ProcessBoard.jsx
             ├── RoutinesBoard.jsx
             ├── DailySummary.jsx     # Login modal with today's tasks
-            └── Analytics.jsx
+            ├── Analytics.jsx
+            ├── EmailsPanel.jsx      # Gmail results panel with add-to-task action
+            ├── AgentChatBox.jsx     # AI chat input with thinking overlay
+            ├── AgentInsights.jsx    # Animated advice panel triggered by AI agent
+            ├── EmailDigest.jsx      # Scanning animation shown while fetching emails
+            └── animations/
+                ├── StreakBurst.jsx  # Full-screen fire burst on streak click
+                ├── StardustOrb.jsx  # Orb that flies from chat to insights panel
+                ├── GlowHalo.jsx     # Lava-lamp glow wrapper for UI elements
+                └── LavaBackground.jsx  # Animated gradient backdrop (Hero section)
 ```
 
 ---

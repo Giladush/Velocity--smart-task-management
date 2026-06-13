@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import AgentChatBox from './AgentChatBox';
-import GlowHalo from './GlowHalo';
+import GlowHalo from './animations/GlowHalo';
 
 export default function Sidebar({ activeView, setActiveView, streak, onSendMessage, isThinking, handleLogout, onOpenSummary, taskCount, processCount, routineCount, username, aiReply, onStreakClick, onSendOrigin }) {
   const [chatInput, setChatInput] = useState('');
@@ -112,13 +112,7 @@ export default function Sidebar({ activeView, setActiveView, streak, onSendMessa
               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider text-center">My AI Agent</p>
             </div>
 
-            {aiReply && (
-              <div className="px-3 py-2.5 text-sm text-slate-600 bg-indigo-50/60 border-b border-slate-100 leading-relaxed" dir="rtl">
-                {aiReply}
-              </div>
-            )}
-
-            <div className="p-3 bg-white shrink-0">
+<div className="p-3 bg-white shrink-0">
               <GlowHalo
                 tone={['#7dd3fc', '#a5b4fc', '#c4b5fd']}
                 glow={isThinking ? 'medium' : 'soft'}
