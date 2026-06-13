@@ -1,11 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 
-export default function Sidebar({ activeView, setActiveView, streak, onSendMessage, isThinking, handleLogout, onOpenSummary, taskCount, processCount, routineCount, username, aiReply }) {
+export default function Sidebar({ activeView, setActiveView, streak, onSendMessage, isThinking, handleLogout, onOpenSummary, taskCount, processCount, routineCount, username, aiReply, onStreakClick, onSendOrigin }) {
   const [chatInput, setChatInput] = useState('');
+  const streakRef = useRef(null);
+  const textareaRef = useRef(null);
+
+  const fireStreak = () => {
+    if (!streakRef.current || !onStreakClick) return;
+    const r = streakRef.current.getBoundingClientRect();
+    onStreakClick({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
+  };
 
   const handleChatSubmit = (e) => {
     if (e && e.preventDefault) e.preventDefault();
     if (!chatInput.trim() || isThinking) return;
+    if (onSendOrigin && textareaRef.current) {
+      const r = textareaRef.current.getBoundingClientRect();
+      onSendOrigin({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
+    }
     onSendMessage(chatInput);
     setChatInput('');
   };
@@ -31,7 +43,11 @@ export default function Sidebar({ activeView, setActiveView, streak, onSendMessa
         
         
         <div className="p-3 shrink-0">
-          <div className="bg-gradient-to-br from-indigo-50 to-white p-3 rounded-2xl border border-indigo-100 shadow-sm flex items-center gap-3">
+          <div
+            ref={streakRef}
+            onClick={fireStreak}
+            className="bg-gradient-to-br from-indigo-50 to-white p-3 rounded-2xl border border-indigo-100 shadow-sm flex items-center gap-3 cursor-pointer hover:shadow-md transition-shadow"
+          >
             <div className="text-2xl">🔥</div>
             <div>
               <p className="text-sm font-bold text-indigo-900">{streak} Day Streak</p>
@@ -114,7 +130,8 @@ export default function Sidebar({ activeView, setActiveView, streak, onSendMessa
             )}
 
             <form onSubmit={handleChatSubmit} className="p-2 bg-white shrink-0">
-              <textarea 
+              <textarea
+                ref={textareaRef}
                 disabled={isThinking}
                 placeholder="Break down a goal..." 
                 rows="3"

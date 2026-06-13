@@ -8,6 +8,9 @@ import LandingPage from './components/LandingPage';
 import DailySummary from './components/DailySummary';
 import Analytics from './components/Analytics';
 import EmailsPanel from './components/EmailsPanel';
+import StreakBurst from './components/StreakBurst';
+import StardustOrb from './components/StardustOrb';
+import AgentInsights from './components/AgentInsights';
 import {
   fetchAllData, addTask, updateTask, deleteTask,
   toggleRoutine, deleteRoutine,
@@ -33,6 +36,10 @@ function App() {
   const [username, setUsername] = useState(localStorage.getItem('stride_username') || '');
   const [preAuthView, setPreAuthView] = useState('landing');
   const [authMode, setAuthMode] = useState('login');
+  const [streakBurst, setStreakBurst] = useState(null);
+  const [advicePhase, setAdvicePhase] = useState('idle'); // idle | flying | open | closing
+  const [adviceOrigin, setAdviceOrigin] = useState({ x: 0, y: 0 });
+  const [adviceRunId, setAdviceRunId] = useState(0);
 
   useEffect(() => {
     const handlePopState = () => {
@@ -114,6 +121,8 @@ function App() {
 
         if (type === 'SET_ADVICE') {
           setAiAdvice(payload.advice_text);
+          setAdviceRunId(n => n + 1);
+          setAdvicePhase('flying');
           return;
         }
 
@@ -288,6 +297,38 @@ function App() {
         />
       )}
 
+      {streakBurst && (
+        <StreakBurst
+          key={streakBurst.x + streakBurst.y}
+          origin={streakBurst}
+          number={streak}
+          intensity="intense"
+          onDone={() => setStreakBurst(null)}
+        />
+      )}
+
+      {advicePhase === 'flying' && (
+        <StardustOrb
+          key={adviceRunId}
+          origin={adviceOrigin}
+          target={{ x: 320 + (window.innerWidth - 320) / 2, y: 130 }}
+          onDone={() => setAdvicePhase('open')}
+        />
+      )}
+
+      {(advicePhase === 'open' || advicePhase === 'closing') && aiAdvice && (
+        <div style={{ position: 'fixed', top: 72, left: 336, right: 24, zIndex: 50 }}>
+          <AgentInsights
+            lines={aiAdvice.split('\n').filter(l => l.trim())}
+            title="Agent Insights"
+            closing={advicePhase === 'closing'}
+            onClose={() => setAdvicePhase('closing')}
+            onClosed={() => { setAdvicePhase('idle'); setAiAdvice(null); }}
+            rtl={true}
+          />
+        </div>
+      )}
+
       <Sidebar
         activeView={activeView}
         setActiveView={setActiveView}
@@ -301,6 +342,8 @@ function App() {
         processCount={processes.length}
         routineCount={routineCount}
         username={username}
+        onStreakClick={(origin) => setStreakBurst(origin)}
+        onSendOrigin={(origin) => setAdviceOrigin(origin)}
       />
 
       <div className="flex-1 flex flex-col overflow-hidden">
@@ -311,16 +354,6 @@ function App() {
 
         {activeView === 'tasks' && (
           <div className="flex-1 flex flex-col overflow-hidden">
-            {aiAdvice && (
-              <div className="bg-gradient-to-br from-indigo-50 to-purple-50 p-6 rounded-2xl border border-indigo-100 shadow-sm mb-6 mt-6 mx-8 animate-fade-in animate-duration-200" dir="rtl">
-                <div className="flex justify-between items-center mb-3">
-                  <h3 className="font-bold text-indigo-900 text-lg flex items-center gap-2">Agent Insights ✨</h3>
-                  <button onClick={() => setAiAdvice(null)} className="text-slate-400 hover:text-slate-600 font-bold">✕</button>
-                </div>
-                <p className="text-slate-700 whitespace-pre-line text-sm leading-relaxed">{aiAdvice}</p>
-              </div>
-            )}
-
             {emailsData && (
               <EmailsPanel
                 emails={emailsData.emails || []}
