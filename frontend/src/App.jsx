@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Sidebar from './components/Sidebar';
 import KanbanBoard from './components/KanbanBoard';
 import ProcessBoard from './components/ProcessBoard';
@@ -11,6 +11,8 @@ import EmailsPanel from './components/EmailsPanel';
 import StreakBurst from './components/StreakBurst';
 import StardustOrb from './components/StardustOrb';
 import AgentInsights from './components/AgentInsights';
+import EmailDigest from './components/EmailDigest';
+import GlowHalo from './components/GlowHalo';
 import {
   fetchAllData, addTask, updateTask, deleteTask,
   toggleRoutine, deleteRoutine,
@@ -40,6 +42,9 @@ function App() {
   const [advicePhase, setAdvicePhase] = useState('idle'); // idle | flying | open | closing
   const [adviceOrigin, setAdviceOrigin] = useState({ x: 0, y: 0 });
   const [adviceRunId, setAdviceRunId] = useState(0);
+  const [emailDigestPhase, setEmailDigestPhase] = useState('idle');
+  const [emailDigestRunId, setEmailDigestRunId] = useState(0);
+  const emailDigestTimer = useRef(null);
 
   useEffect(() => {
     const handlePopState = () => {
@@ -128,6 +133,12 @@ function App() {
 
         if (type === 'SET_EMAILS') {
           setEmailsData(payload);
+          if (!payload.error) {
+            setEmailDigestRunId(n => n + 1);
+            setEmailDigestPhase('thinking');
+            clearTimeout(emailDigestTimer.current);
+            emailDigestTimer.current = setTimeout(() => setEmailDigestPhase('closing'), 2200);
+          }
           return;
         }
 
@@ -354,20 +365,34 @@ function App() {
 
         {activeView === 'tasks' && (
           <div className="flex-1 flex flex-col overflow-hidden">
-            {emailsData && (
-              <EmailsPanel
-                emails={emailsData.emails || []}
-                query={emailsData.query || ''}
-                error={emailsData.error}
-                onAddAsTask={(summary) => {
-                  handleAddTask(summary, null, 'normal', []);
-                  setEmailsData(prev => ({
-                    ...prev,
-                    emails: prev.emails.filter(e => e.summary !== summary && e.subject !== summary)
-                  }));
-                }}
-                onClose={() => setEmailsData(null)}
-              />
+            {emailDigestPhase !== 'idle' && (
+              <div className="mx-8 mt-6">
+                <EmailDigest
+                  key={emailDigestRunId}
+                  phase={emailDigestPhase}
+                  emails={[]}
+                  onClose={() => setEmailDigestPhase('closing')}
+                  onClosed={() => setEmailDigestPhase('idle')}
+                />
+              </div>
+            )}
+
+            {emailDigestPhase === 'idle' && emailsData && (
+              <GlowHalo tone={['#7dd3fc', '#a5b4fc', '#c4b5fd']} glow="soft">
+                <EmailsPanel
+                  emails={emailsData.emails || []}
+                  query={emailsData.query || ''}
+                  error={emailsData.error}
+                  onAddAsTask={(summary) => {
+                    handleAddTask(summary, null, 'normal', []);
+                    setEmailsData(prev => ({
+                      ...prev,
+                      emails: prev.emails.filter(e => e.summary !== summary && e.subject !== summary)
+                    }));
+                  }}
+                  onClose={() => setEmailsData(null)}
+                />
+              </GlowHalo>
             )}
 
             <KanbanBoard

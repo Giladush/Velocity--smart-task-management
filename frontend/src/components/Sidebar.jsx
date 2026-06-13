@@ -1,9 +1,10 @@
 import React, { useState, useRef } from 'react';
+import AgentChatBox from './AgentChatBox';
+import GlowHalo from './GlowHalo';
 
 export default function Sidebar({ activeView, setActiveView, streak, onSendMessage, isThinking, handleLogout, onOpenSummary, taskCount, processCount, routineCount, username, aiReply, onStreakClick, onSendOrigin }) {
   const [chatInput, setChatInput] = useState('');
   const streakRef = useRef(null);
-  const textareaRef = useRef(null);
 
   const fireStreak = () => {
     if (!streakRef.current || !onStreakClick) return;
@@ -11,23 +12,11 @@ export default function Sidebar({ activeView, setActiveView, streak, onSendMessa
     onStreakClick({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
   };
 
-  const handleChatSubmit = (e) => {
-    if (e && e.preventDefault) e.preventDefault();
+  const handleChatSubmit = (origin) => {
     if (!chatInput.trim() || isThinking) return;
-    if (onSendOrigin && textareaRef.current) {
-      const r = textareaRef.current.getBoundingClientRect();
-      onSendOrigin({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
-    }
+    if (onSendOrigin) onSendOrigin(origin);
     onSendMessage(chatInput);
     setChatInput('');
-  };
-
-  
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleChatSubmit(e);
-    }
   };
 
   return (
@@ -129,22 +118,23 @@ export default function Sidebar({ activeView, setActiveView, streak, onSendMessa
               </div>
             )}
 
-            <form onSubmit={handleChatSubmit} className="p-2 bg-white shrink-0">
-              <textarea
-                ref={textareaRef}
-                disabled={isThinking}
-                placeholder="Break down a goal..." 
-                rows="3"
-                className={`w-full p-2 text-sm rounded-lg bg-slate-100 focus:outline-none transition-all duration-300 resize-none ${
-                  isThinking 
-                    ? 'ring-2 ring-indigo-400 shadow-[0_0_10px_rgba(99,102,241,0.3)] animate-pulse' 
-                    : 'focus:ring-2 focus:ring-indigo-500'
-                }`}
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-              />
-            </form>
+            <div className="p-3 bg-white shrink-0">
+              <GlowHalo
+                tone={['#7dd3fc', '#a5b4fc', '#c4b5fd']}
+                glow={isThinking ? 'medium' : 'soft'}
+                speed={isThinking ? 1 : 0.5}
+                radius={12}
+                spread={isThinking ? 14 : 0}
+              >
+                <AgentChatBox
+                  value={chatInput}
+                  onChange={setChatInput}
+                  onSubmit={handleChatSubmit}
+                  thinking={isThinking}
+                  placeholder="Break down a goal…"
+                />
+              </GlowHalo>
+            </div>
           </div>
         </div>
       </div>
