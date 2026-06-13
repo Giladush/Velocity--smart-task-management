@@ -57,6 +57,10 @@ function App() {
   }, [token]);
 
   useEffect(() => {
+    if (activeView !== 'processes') setSelectedProcessId(null);
+  }, [activeView]);
+
+  useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const calToken = params.get('cal_token');
     if (calToken) {

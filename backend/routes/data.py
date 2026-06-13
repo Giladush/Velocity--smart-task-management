@@ -51,30 +51,27 @@ def get_analytics():
                 "completed": daily_count
             })
 
-        open_high = Task.query.filter(
+        todo_count = Task.query.filter(
             Task.user_id == current_user_id,
-            Task.is_completed == False,
             Task.process_id == None,
-            Task.urgency.in_(['high', 'High'])
+            Task.status == 'To Do'
         ).count()
-        open_normal = Task.query.filter(
+        in_progress_count = Task.query.filter(
             Task.user_id == current_user_id,
-            Task.is_completed == False,
             Task.process_id == None,
-            Task.urgency.in_(['normal', 'Normal', None, ''])
+            Task.status == 'In Progress'
         ).count()
-        open_low = Task.query.filter(
+        done_count = Task.query.filter(
             Task.user_id == current_user_id,
-            Task.is_completed == False,
             Task.process_id == None,
-            Task.urgency.in_(['low', 'Low'])
+            Task.is_completed == True
         ).count()
 
         return jsonify({
             "overall_progress": round(overall_progress),
             "processes_progress": processes_data,
             "weekly_chart": weekly_data,
-            "open_tasks_by_priority": {"high": open_high, "normal": open_normal, "low": open_low}
+            "tasks_by_status": {"todo": todo_count, "in_progress": in_progress_count, "done": done_count}
         }), 200
 
     except Exception as e:

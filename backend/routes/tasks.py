@@ -49,7 +49,10 @@ def update_task(task_id):
 
     if 'is_completed' in data:
         new_is_completed = data['is_completed']
-        task.status = "Done" if new_is_completed else "To Do"
+        if 'status' in data:
+            task.status = data['status']
+        else:
+            task.status = "Done" if new_is_completed else "To Do"
         process_completion = True
     elif 'status' in data:
         task.status = data['status']
@@ -82,7 +85,7 @@ def update_task(task_id):
                     routine.streak = (routine.streak or 0) + 1
                     routine.last_completed_date = today_date
             else:
-                if last_completed == today_date:
+                if last_completed and last_completed != today_date:
                     routine.streak = max(0, (routine.streak or 0) - 1)
                     routine.last_completed_date = yesterday_date
 
