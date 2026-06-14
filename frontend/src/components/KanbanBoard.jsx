@@ -231,6 +231,23 @@ export default function KanbanBoard({
 
   const sortComparator = buildSortComparator(todayStr, tomorrowStr, nextWeekStr);
 
+  const isFilterMatch = (task) => {
+    if (activeFilter === 'default') return false;
+    if (activeFilter === 'today') return task.due_date === todayStr;
+    if (activeFilter === 'tomorrow') return task.due_date === tomorrowStr;
+    if (activeFilter === 'next7days') return !!(task.due_date && task.due_date >= todayStr && task.due_date <= nextWeekStr);
+    if (activeFilter === 'next_X_days') {
+      const maxDate = new Date(); maxDate.setDate(maxDate.getDate() + customDaysCount);
+      const maxStr = maxDate.toISOString().split('T')[0];
+      return !!(task.due_date && task.due_date >= todayStr && task.due_date <= maxStr);
+    }
+    if (activeFilter === 'custom') return task.due_date === customDate;
+    if (activeFilter === 'high_urgency') return task.urgency === 'high';
+    if (activeFilter === 'normal_urgency') return task.urgency === 'normal' || !task.urgency;
+    if (activeFilter === 'low_urgency') return task.urgency === 'low';
+    return false;
+  };
+
   const activeTasks = tasks.filter(t => !t.is_routine);
   const filterCounts = {
     today: activeTasks.filter(t => t.due_date === todayStr).length,
@@ -348,6 +365,7 @@ export default function KanbanBoard({
                                       highlightText={highlightText}
                                       renderTagChips={renderTagChips}
                                       searchQuery={searchQuery}
+                                      isMatch={isFilterMatch(task)}
                                     />
                                   )}
                                 </Draggable>
@@ -372,6 +390,7 @@ export default function KanbanBoard({
               addTaskToCalendar={addTaskToCalendar}
               highlightText={(text) => highlightText(text, searchQuery.trim())}
               renderTagChips={renderTagChips}
+              isFilterMatch={isFilterMatch}
             />
           )}
         </div>

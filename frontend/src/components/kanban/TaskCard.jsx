@@ -5,7 +5,7 @@ export default function TaskCard({
   editingTaskId, editTitle, setEditTitle,
   handleEditStart, handleEditSave, setEditingTaskId,
   onDeleteTask, onUpdateTask, addTaskToCalendar,
-  highlightText, renderTagChips, searchQuery
+  highlightText, renderTagChips, searchQuery, isMatch
 }) {
   return (
     <div
@@ -20,7 +20,7 @@ export default function TaskCard({
         status === 'Done' ? 'border-l-4 border-l-emerald-400 opacity-80'
         : status === 'In Progress' ? 'border-l-4 border-l-amber-400'
         : 'border-slate-100'
-      }`}
+      } ${isMatch && !snapshot.isDragging ? 'task-glow' : ''}`}
     >
       {task.created_at && (
         <div className="absolute top-0 -translate-y-1/2 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[11px] px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-md">

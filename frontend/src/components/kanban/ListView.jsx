@@ -5,7 +5,7 @@ export default function ListView({
   editingTaskId, editTitle, setEditTitle,
   handleEditStart, handleEditSave, setEditingTaskId,
   handleStatusChange, onDeleteTask, onUpdateTask,
-  addTaskToCalendar, highlightText, renderTagChips
+  addTaskToCalendar, highlightText, renderTagChips, isFilterMatch
 }) {
   return (
     <div className="h-full flex flex-col overflow-hidden bg-white">
@@ -21,14 +21,26 @@ export default function ListView({
 
       {/* Rows */}
       <div className="flex-1 overflow-y-auto custom-scrollbar">
-        {listTasks.map(task => {
+        {listTasks.map((task, i) => {
           const isOverdue = task.due_date
             && new Date(task.due_date) < new Date(new Date().setHours(0, 0, 0, 0))
             && task.status !== 'Done';
 
+          const matched = isFilterMatch?.(task) ?? false;
+          const prevMatched = i > 0 && (isFilterMatch?.(listTasks[i - 1]) ?? false);
+
+          const shadows = [];
+          if (matched) {
+            shadows.push('inset 2px 0 0 0 #a5b4fc');
+            shadows.push('inset -2px 0 0 0 #a5b4fc');
+            shadows.push('inset 0 -2px 0 0 #a5b4fc');
+            if (!prevMatched) shadows.push('inset 0 2px 0 0 #a5b4fc');
+          }
+
           return (
             <div
               key={task.id}
+              style={matched ? { boxShadow: shadows.join(', ') } : {}}
               className={`group flex items-center gap-3 px-5 py-3 border-b border-slate-100 hover:ring-1 hover:ring-inset hover:ring-indigo-200 hover:bg-indigo-50/20 transition-all ${task.status === 'Done' ? 'opacity-65' : ''}`}
             >
               {/* Status color bar */}
