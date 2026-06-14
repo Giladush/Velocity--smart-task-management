@@ -7,8 +7,7 @@ from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 import google.generativeai as genai
 
-if os.getenv('FLASK_ENV') == 'development':
-    os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
+os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
 calendar_bp = Blueprint('calendar', __name__)
 
@@ -28,26 +27,26 @@ client_config = {
     }
 }
 
-_pkce_store = {}
 _credentials_store = {}
+_pkce_store = {}
 
 
-def create_google_flow(autogenerate_code_verifier=False):
+def create_google_flow():
     return Flow.from_client_config(
         client_config,
         scopes=SCOPES,
         redirect_uri="http://127.0.0.1:5000/api/callback",
-        autogenerate_code_verifier=autogenerate_code_verifier
     )
 
 
 @calendar_bp.route('/api/calendar/auth', methods=['GET'])
 def calendar_auth():
-    flow = create_google_flow(autogenerate_code_verifier=True)
+    flow = create_google_flow()
     authorization_url, state = flow.authorization_url(
         access_type='offline',
         include_granted_scopes='true'
     )
+    # Store the auto-generated code_verifier so the callback can use it
     _pkce_store[state] = flow.code_verifier
     return jsonify({"auth_url": authorization_url})
 
@@ -57,10 +56,7 @@ def calendar_callback():
     state = request.args.get('state')
     code_verifier = _pkce_store.pop(state, None)
     flow = create_google_flow()
-    flow.fetch_token(
-        authorization_response=request.url,
-        code_verifier=code_verifier
-    )
+    flow.fetch_token(authorization_response=request.url, code_verifier=code_verifier)
     credentials = flow.credentials
     token = secrets.token_urlsafe(32)
     _credentials_store[token] = {
