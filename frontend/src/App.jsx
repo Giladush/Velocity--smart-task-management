@@ -41,6 +41,8 @@ function App() {
   const [toast, setToast] = useState(null);
   const toastTimer = useRef(null);
   const [streakBurst, setStreakBurst] = useState(null);
+  const prevStreakRef = useRef(null);
+  const getStreakPosRef = useRef(null);
   const [advicePhase, setAdvicePhase] = useState('idle'); // idle | flying | open | closing
   const [adviceOrigin, setAdviceOrigin] = useState({ x: 0, y: 0 });
   const [adviceRunId, setAdviceRunId] = useState(0);
@@ -102,7 +104,14 @@ function App() {
         })
       );
       setProcesses(data.processes || []);
-      if (data.streak !== undefined) setStreak(data.streak);
+      if (data.streak !== undefined) {
+        if (prevStreakRef.current !== null && data.streak > prevStreakRef.current) {
+          const pos = getStreakPosRef.current?.();
+          if (pos) setStreakBurst(pos);
+        }
+        prevStreakRef.current = data.streak;
+        setStreak(data.streak);
+      }
       if (data.routine_count !== undefined) setRoutineCount(data.routine_count);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -247,6 +256,7 @@ function App() {
       }
     } else {
       updateTask(token, draggedTask.id, { status: newStatus, is_completed: isCompleted })
+        .then(res => { if (res.ok && (newStatus === 'Done' || oldStatus === 'Done')) fetchData(); })
         .catch(err => console.error('Error syncing task drag:', err));
     }
   };
@@ -379,6 +389,7 @@ function App() {
         username={username}
         onStreakClick={(origin) => setStreakBurst(origin)}
         onSendOrigin={(origin) => setAdviceOrigin(origin)}
+        getStreakPos={getStreakPosRef}
       />
 
       <div className="flex-1 flex flex-col overflow-hidden">

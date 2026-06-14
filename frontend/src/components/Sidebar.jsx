@@ -2,14 +2,22 @@ import React, { useState, useRef } from 'react';
 import AgentChatBox from './AgentChatBox';
 import GlowHalo from './animations/GlowHalo';
 
-export default function Sidebar({ activeView, setActiveView, streak, onSendMessage, isThinking, handleLogout, onOpenSummary, taskCount, processCount, routineCount, username, aiReply, onStreakClick, onSendOrigin }) {
+export default function Sidebar({ activeView, setActiveView, streak, onSendMessage, isThinking, handleLogout, onOpenSummary, taskCount, processCount, routineCount, username, aiReply, onStreakClick, onSendOrigin, getStreakPos }) {
   const [chatInput, setChatInput] = useState('');
   const streakRef = useRef(null);
 
-  const fireStreak = () => {
-    if (!streakRef.current || !onStreakClick) return;
+  const getPos = () => {
+    if (!streakRef.current) return null;
     const r = streakRef.current.getBoundingClientRect();
-    onStreakClick({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  };
+
+  if (getStreakPos) getStreakPos.current = getPos;
+
+  const fireStreak = () => {
+    if (!onStreakClick) return;
+    const pos = getPos();
+    if (pos) onStreakClick(pos);
   };
 
   const handleChatSubmit = (origin) => {

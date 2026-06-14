@@ -177,11 +177,17 @@ export default function KanbanBoard({
   };
 
   // Sort / filter logic
-  const todayStr = new Date().toISOString().split('T')[0];
+  const localDateStr = (d) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+  const todayStr = localDateStr(new Date());
   const tomorrowDate = new Date(); tomorrowDate.setDate(tomorrowDate.getDate() + 1);
-  const tomorrowStr = tomorrowDate.toISOString().split('T')[0];
+  const tomorrowStr = localDateStr(tomorrowDate);
   const nextWeekDate = new Date(); nextWeekDate.setDate(nextWeekDate.getDate() + 7);
-  const nextWeekStr = nextWeekDate.toISOString().split('T')[0];
+  const nextWeekStr = localDateStr(nextWeekDate);
 
   const buildSortComparator = (todayS, tomorrowS, nextWeekS) => (a, b) => {
     const sq = searchQuery.trim().toLowerCase();
@@ -206,7 +212,7 @@ export default function KanbanBoard({
       if (!aIs && bIs) return 1;
     } else if (activeFilter === 'next_X_days') {
       const maxDate = new Date(); maxDate.setDate(maxDate.getDate() + customDaysCount);
-      const maxStr = maxDate.toISOString().split('T')[0];
+      const maxStr = localDateStr(maxDate);
       const aIs = a.due_date && a.due_date >= todayS && a.due_date <= maxStr;
       const bIs = b.due_date && b.due_date >= todayS && b.due_date <= maxStr;
       if (aIs && !bIs) return -1;
@@ -238,7 +244,7 @@ export default function KanbanBoard({
     if (activeFilter === 'next7days') return !!(task.due_date && task.due_date >= todayStr && task.due_date <= nextWeekStr);
     if (activeFilter === 'next_X_days') {
       const maxDate = new Date(); maxDate.setDate(maxDate.getDate() + customDaysCount);
-      const maxStr = maxDate.toISOString().split('T')[0];
+      const maxStr = localDateStr(maxDate);
       return !!(task.due_date && task.due_date >= todayStr && task.due_date <= maxStr);
     }
     if (activeFilter === 'custom') return task.due_date === customDate;

@@ -5,7 +5,11 @@ flask-sqlalchemy
 flask-migrate
 python-dotenv
 google-generativeai
+google-auth
+google-auth-oauthlib
+google-api-python-client
 requests
+requests-oauthlib
 werkzeug
 pytest
 pytest-flask

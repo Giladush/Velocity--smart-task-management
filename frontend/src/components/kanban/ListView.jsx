@@ -31,10 +31,10 @@ export default function ListView({
 
           const shadows = [];
           if (matched) {
-            shadows.push('inset 2px 0 0 0 #a5b4fc');
-            shadows.push('inset -2px 0 0 0 #a5b4fc');
-            shadows.push('inset 0 -2px 0 0 #a5b4fc');
-            if (!prevMatched) shadows.push('inset 0 2px 0 0 #a5b4fc');
+            shadows.push('inset 1.5px 0 0 0 #a5b4fc');
+            shadows.push('inset -1.5px 0 0 0 #a5b4fc');
+            shadows.push('inset 0 -1.5px 0 0 #a5b4fc');
+            if (!prevMatched) shadows.push('inset 0 1.5px 0 0 #a5b4fc');
           }
 
           return (
