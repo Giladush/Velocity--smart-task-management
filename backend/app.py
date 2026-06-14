@@ -19,7 +19,7 @@ app.config['JWT_TOKEN_LOCATION'] = ['headers']
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=30)
 jwt = JWTManager(app)
 
-CORS(app, supports_credentials=True, origins=['http://localhost:5173'])
+CORS(app, supports_credentials=True, origins=[r'http://localhost:5173', r'http://localhost:5174', r'http://localhost:5175'])
 
 app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(os.path.dirname(__file__), 'velocity.db')}"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
