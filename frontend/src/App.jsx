@@ -14,7 +14,7 @@ import AgentInsights from './components/AgentInsights';
 import EmailDigest from './components/EmailDigest';
 import GlowHalo from './components/animations/GlowHalo';
 import {
-  fetchAllData, addTask, updateTask, deleteTask,
+  fetchAllData, fetchMe, addTask, updateTask, deleteTask,
   toggleRoutine, deleteRoutine,
   createProcess, deleteProcess, addProcessTask,
   sendAIMessage
@@ -84,9 +84,7 @@ function App() {
     if (!token) return;
     try {
       if (!localStorage.getItem('stride_username')) {
-        const meRes = await fetch('http://localhost:5000/api/me', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
+        const meRes = await fetchMe(token);
         if (meRes.ok) {
           const me = await meRes.json();
           localStorage.setItem('stride_username', me.username);
@@ -209,7 +207,7 @@ function App() {
     try {
       if (task.is_routine || String(task.id).includes('routine_')) {
         const actualRoutineId = task.routine_id || String(task.id).replace('routine_', '');
-        const res = await toggleRoutine(actualRoutineId);
+        const res = await toggleRoutine(token, actualRoutineId);
         if (res.ok) fetchData();
       } else {
         const payload = { is_completed: task.is_completed, title: task.title };
@@ -243,7 +241,7 @@ function App() {
     if (isRoutine) {
       if (newStatus === 'Done' || oldStatus === 'Done') {
         const actualRoutineId = draggedTask.routine_id || String(draggableId).replace('routine_', '');
-        toggleRoutine(actualRoutineId)
+        toggleRoutine(token, actualRoutineId)
           .then(res => { if (res.ok && newStatus === 'Done') fetchData(); })
           .catch(err => console.error('Error toggling routine:', err));
       }
@@ -434,6 +432,7 @@ function App() {
               setActiveFilter={setActiveFilter}
               setCustomDate={setCustomDate}
               onToast={showToast}
+              onRefresh={fetchData}
             />
           </div>
         )}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { fetchRoutines as apiFetchRoutines, toggleRoutine as apiToggleRoutine, deleteRoutine as apiDeleteRoutine, createRoutine as apiCreateRoutine } from '../services/api';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -15,17 +16,16 @@ export default function RoutinesBoard({ onDataChange }) {
     fetchRoutines();
   }, []);
 
- const fetchRoutines = async () => {
+  const fetchRoutines = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/routines');
+      const token = localStorage.getItem('stride_token');
+      const response = await apiFetchRoutines(token);
       const data = await response.json();
-      
-      
       if (response.ok && Array.isArray(data)) {
         setRoutines(data);
       } else {
         console.error("Server error or invalid data:", data);
-        setRoutines([]); 
+        setRoutines([]);
       }
     } catch (error) {
       console.error("Error fetching routines:", error);
@@ -45,7 +45,8 @@ export default function RoutinesBoard({ onDataChange }) {
     ));
 
     try {
-      const response = await fetch(`http://localhost:5000/api/routines/${id}/toggle`, { method: 'POST' });
+      const token = localStorage.getItem('stride_token');
+      const response = await apiToggleRoutine(token, id);
       
       if (!response.ok) {
         throw new Error("Toggle failed on server");
@@ -70,9 +71,8 @@ export default function RoutinesBoard({ onDataChange }) {
     setRoutines(routines.filter(routine => routine.id !== id));
 
     try {
-      await fetch(`http://localhost:5000/api/routines/${id}`, {
-        method: 'DELETE',
-      });
+      const token = localStorage.getItem('stride_token');
+      await apiDeleteRoutine(token, id);
       if (onDataChange) onDataChange();
     } catch (error) {
       console.error("Error deleting routine:", error);
@@ -97,14 +97,8 @@ export default function RoutinesBoard({ onDataChange }) {
     };
 
     try {
-      const response = await fetch('http://localhost:5000/api/routines', {
-        method: 'POST',
-        headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('stride_token')}` 
-      },
-        body: JSON.stringify(routineData)
-      });
+      const token = localStorage.getItem('stride_token');
+      const response = await apiCreateRoutine(token, routineData);
       
       
       

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { loginUser, registerUser } from '../services/api';
 
 export default function Auth({ setToken, setUsername, initialMode = 'login' }) {
   const [isLogin, setIsLogin] = useState(initialMode !== 'signup');
@@ -21,11 +22,9 @@ export default function Auth({ setToken, setUsername, initialMode = 'login' }) {
       : formData;
 
     try {
-      const res = await fetch(`http://localhost:5000${endpoint}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
+      const res = isLogin
+        ? await loginUser(formData.email, formData.password)
+        : await registerUser(formData);
 
       const data = await res.json();
 

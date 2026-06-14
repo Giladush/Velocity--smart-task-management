@@ -7,9 +7,11 @@ routines_bp = Blueprint('routines', __name__)
 
 
 @routines_bp.route('/api/routines', methods=['GET'])
+@jwt_required()
 def get_routines():
     try:
-        routines = Routine.query.filter_by(is_active=True).all()
+        current_user_id = int(get_jwt_identity())
+        routines = Routine.query.filter_by(is_active=True, user_id=current_user_id).all()
         return jsonify([r.to_dict() for r in routines]), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -37,9 +39,13 @@ def create_routine():
 
 
 @routines_bp.route('/api/routines/<int:routine_id>', methods=['DELETE'])
+@jwt_required()
 def delete_routine(routine_id):
     try:
+        current_user_id = int(get_jwt_identity())
         routine = Routine.query.get_or_404(routine_id)
+        if routine.user_id != current_user_id:
+            return jsonify({"error": "Forbidden"}), 403
         db.session.delete(routine)
         db.session.commit()
         return jsonify({"message": "Routine deleted"}), 200
@@ -49,9 +55,13 @@ def delete_routine(routine_id):
 
 
 @routines_bp.route('/api/routines/<int:routine_id>/toggle', methods=['POST'])
+@jwt_required()
 def toggle_routine(routine_id):
     try:
+        current_user_id = int(get_jwt_identity())
         routine = Routine.query.get_or_404(routine_id)
+        if routine.user_id != current_user_id:
+            return jsonify({"error": "Forbidden"}), 403
         today = date.today()
         # Use offset to avoid collision with task IDs in CompletionLog
         log_task_id = routine_id + 1_000_000

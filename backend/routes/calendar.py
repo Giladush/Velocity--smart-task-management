@@ -7,7 +7,8 @@ from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 import google.generativeai as genai
 
-os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
+if os.getenv('FLASK_ENV') == 'development':
+    os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
 calendar_bp = Blueprint('calendar', __name__)
 

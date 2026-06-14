@@ -2,7 +2,10 @@ flask
 flask-cors
 flask-jwt-extended
 flask-sqlalchemy
+flask-migrate
 python-dotenv
 google-generativeai
 requests
 werkzeug
+pytest
+pytest-flask

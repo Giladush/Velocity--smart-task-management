@@ -1,18 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { fetchAnalytics } from '../services/api';
 
 export default function Analytics({ token }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchAnalytics = async () => {
+    const loadAnalytics = async () => {
       try {
-        const res = await fetch('http://127.0.0.1:5000/api/analytics', {
-          headers: {
-            'Authorization': `Bearer ${token}` 
-          }
-        });
+        const res = await fetchAnalytics(token);
         if (res.ok) {
           const analyticsData = await res.json();
           setData(analyticsData);
@@ -24,7 +21,7 @@ export default function Analytics({ token }) {
       }
     };
 
-    fetchAnalytics();
+    loadAnalytics();
   }, [token]);
 
   if (loading) return <div className="flex-1 p-8 flex items-center justify-center text-slate-500 font-medium">מכין את הנתונים שלך... ⏳</div>;

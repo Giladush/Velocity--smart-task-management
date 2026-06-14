@@ -61,7 +61,7 @@ class CompletionLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, nullable=False)
     task_id = db.Column(db.Integer, nullable=False)
-    completed_date = db.Column(db.Date, default=datetime.utcnow().date)
+    completed_date = db.Column(db.Date, default=date.today)
 
 
 # routine model

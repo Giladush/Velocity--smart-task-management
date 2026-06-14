@@ -1,4 +1,4 @@
-const BASE = 'http://localhost:5000';
+const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:5000';
 
 const authHeaders = (token) => ({ 'Authorization': `Bearer ${token}` });
 const jsonHeaders = (token) => ({ 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` });
@@ -8,6 +8,29 @@ export const fetchAllData = async (token) => {
   if (!res.ok) throw new Error('Failed to fetch data');
   return res.json();
 };
+
+export const fetchMe = (token) =>
+  fetch(`${BASE}/api/me`, { headers: authHeaders(token) });
+
+export const fetchAnalytics = (token) =>
+  fetch(`${BASE}/api/analytics`, { headers: authHeaders(token) });
+
+export const fetchRoutines = (token) =>
+  fetch(`${BASE}/api/routines`, { headers: authHeaders(token) });
+
+export const loginUser = (email, password) =>
+  fetch(`${BASE}/api/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password })
+  });
+
+export const registerUser = (userData) =>
+  fetch(`${BASE}/api/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(userData)
+  });
 
 export const addTask = (token, title, dueDate, urgency, tags) =>
   fetch(`${BASE}/api/tasks`, {
@@ -26,11 +49,18 @@ export const updateTask = (token, taskId, payload) =>
 export const deleteTask = (token, taskId) =>
   fetch(`${BASE}/api/tasks/${taskId}`, { method: 'DELETE', headers: authHeaders(token) });
 
-export const toggleRoutine = (routineId) =>
-  fetch(`${BASE}/api/routines/${routineId}/toggle`, { method: 'POST' });
+export const toggleRoutine = (token, routineId) =>
+  fetch(`${BASE}/api/routines/${routineId}/toggle`, { method: 'POST', headers: authHeaders(token) });
 
 export const deleteRoutine = (token, routineId) =>
   fetch(`${BASE}/api/routines/${routineId}`, { method: 'DELETE', headers: authHeaders(token) });
+
+export const createRoutine = (token, data) =>
+  fetch(`${BASE}/api/routines`, {
+    method: 'POST',
+    headers: jsonHeaders(token),
+    body: JSON.stringify(data)
+  });
 
 export const createProcess = (token, title) =>
   fetch(`${BASE}/api/processes`, {
@@ -59,12 +89,12 @@ export const sendAIMessage = async (token, message) => {
 };
 
 export const connectGoogleCalendar = async () => {
-  const res = await fetch('http://127.0.0.1:5000/api/calendar/auth');
+  const res = await fetch(`${BASE}/api/calendar/auth`);
   return res.json();
 };
 
 export const createCalendarEvent = (calToken, task) =>
-  fetch('http://127.0.0.1:5000/api/calendar/create_event', {
+  fetch(`${BASE}/api/calendar/create_event`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-Calendar-Token': calToken || '' },
     body: JSON.stringify({
@@ -76,9 +106,9 @@ export const createCalendarEvent = (calToken, task) =>
   });
 
 export const fetchDailyQuote = () =>
-  fetch('http://127.0.0.1:5000/api/quote').then(r => r.json());
+  fetch(`${BASE}/api/quote`).then(r => r.json());
 
 export const fetchUrgentEmails = (calToken) =>
-  fetch('http://127.0.0.1:5000/api/gmail/urgent', {
+  fetch(`${BASE}/api/gmail/urgent`, {
     headers: { 'X-Calendar-Token': calToken || '' }
   }).then(r => r.json());

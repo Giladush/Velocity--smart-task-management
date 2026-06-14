@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request
-from models import db, Task, Process, Routine
+from models import db, Task, Process, Routine, CompletionLog
 from datetime import date
 import json
 import google.generativeai as genai
@@ -162,11 +162,18 @@ def chat_with_stride():
 
         elif intent == "complete_tasks":
             target_date = payload.get("target_date")
+            today_date = date.today()
             if target_date == "all":
-                Task.query.filter_by(is_completed=False, user_id=current_user_id).update({"is_completed": True, "status": "Done"})
+                tasks_to_complete = Task.query.filter_by(is_completed=False, user_id=current_user_id).all()
             else:
                 actual_date = today_str if target_date == "today" else target_date
-                Task.query.filter_by(due_date=actual_date, is_completed=False, user_id=current_user_id).update({"is_completed": True, "status": "Done"})
+                tasks_to_complete = Task.query.filter_by(due_date=actual_date, is_completed=False, user_id=current_user_id).all()
+            for task in tasks_to_complete:
+                task.is_completed = True
+                task.status = "Done"
+                existing_log = CompletionLog.query.filter_by(task_id=task.id, completed_date=today_date).first()
+                if not existing_log:
+                    db.session.add(CompletionLog(user_id=current_user_id, task_id=task.id, completed_date=today_date))
             db.session.commit()
             action = {"type": "REFRESH_DATA"}
 

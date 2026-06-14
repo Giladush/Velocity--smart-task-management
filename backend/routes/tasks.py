@@ -38,10 +38,14 @@ def add_task():
 
 
 @tasks_bp.route('/api/tasks/<int:task_id>', methods=['PUT'])
+@jwt_required()
 def update_task(task_id):
+    current_user_id = int(get_jwt_identity())
     task = db.session.get(Task, task_id)
     if not task:
         return jsonify({"error": "Task not found"}), 404
+    if task.user_id != current_user_id:
+        return jsonify({"error": "Forbidden"}), 403
 
     data = request.get_json()
     process_completion = False
@@ -85,9 +89,9 @@ def update_task(task_id):
                     routine.streak = (routine.streak or 0) + 1
                     routine.last_completed_date = today_date
             else:
-                if last_completed and last_completed != today_date:
+                if last_completed == today_date:
                     routine.streak = max(0, (routine.streak or 0) - 1)
-                    routine.last_completed_date = yesterday_date
+                    routine.last_completed_date = None
 
     if 'title' in data:
         task.title = data['title']
@@ -102,10 +106,14 @@ def update_task(task_id):
 
 
 @tasks_bp.route('/api/tasks/<int:task_id>', methods=['DELETE'])
+@jwt_required()
 def delete_task(task_id):
+    current_user_id = int(get_jwt_identity())
     task = db.session.get(Task, task_id)
     if not task:
         return jsonify({"error": "Task not found"}), 404
+    if task.user_id != current_user_id:
+        return jsonify({"error": "Forbidden"}), 403
     db.session.delete(task)
     db.session.commit()
     return jsonify({"message": "Task deleted successfully"}), 200

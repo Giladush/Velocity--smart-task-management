@@ -3,11 +3,11 @@ import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import TagPicker from './kanban/TagPicker';
 import TaskCard from './kanban/TaskCard';
 import ListView from './kanban/ListView';
-import { connectGoogleCalendar, createCalendarEvent, fetchDailyQuote } from '../services/api';
+import { connectGoogleCalendar, createCalendarEvent, fetchDailyQuote, updateTask } from '../services/api';
 
 export default function KanbanBoard({
   tasks, onAddTask, onUpdateTask, onDeleteTask, onDragEnd,
-  activeFilter, setActiveFilter, customDate, setCustomDate, customDaysCount, onToast
+  activeFilter, setActiveFilter, customDate, setCustomDate, customDaysCount, onToast, onRefresh
 }) {
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDeadline, setNewTaskDeadline] = useState('');
@@ -89,18 +89,11 @@ export default function KanbanBoard({
   const handleEditSave = (taskId) => {
     if (editingTaskId !== taskId) return;
     if (!editTitle.trim()) { setEditingTaskId(null); return; }
-    fetch(`http://localhost:5000/api/tasks/${taskId}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('stride_token')}`
-      },
-      body: JSON.stringify({ title: editTitle })
-    }).then(res => {
+    updateTask(localStorage.getItem('stride_token'), taskId, { title: editTitle })
+    .then(res => {
       if (res.ok) {
-        const orig = tasks.find(t => t.id === taskId);
-        onUpdateTask({ ...orig, title: editTitle });
         setEditingTaskId(null);
+        onRefresh?.();
       }
     }).catch(err => console.error('Error updating task:', err));
   };
