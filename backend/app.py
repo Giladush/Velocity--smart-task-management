@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from flask_jwt_extended import JWTManager
 from datetime import timedelta
 from sqlalchemy import text
-from routes import auth_bp, tasks_bp, processes_bp, routines_bp, data_bp, calendar_bp
+from routes import auth_bp, tasks_bp, processes_bp, routines_bp, data_bp, analytics_bp, ai_bp, calendar_bp
 
 load_dotenv()
 
@@ -36,6 +36,8 @@ app.register_blueprint(tasks_bp)
 app.register_blueprint(processes_bp)
 app.register_blueprint(routines_bp)
 app.register_blueprint(data_bp)
+app.register_blueprint(analytics_bp)
+app.register_blueprint(ai_bp)
 app.register_blueprint(calendar_bp)
 
 if __name__ == '__main__':

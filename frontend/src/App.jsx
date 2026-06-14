@@ -143,6 +143,13 @@ function App() {
           return;
         }
 
+        if (type === 'SHOW_REPLY') {
+          setAiAdvice(payload.advice_text);
+          setAdviceRunId(n => n + 1);
+          setAdvicePhase('open');
+          return;
+        }
+
         if (type === 'SET_EMAILS') {
           setEmailsData(payload);
           if (!payload.error) {

@@ -60,7 +60,7 @@ A daily streak that increments if at least one item was completed that day — c
 **Frontend**
 - React 18 (Vite)
 - Tailwind CSS
-- react-beautiful-dnd (drag and drop)
+- @hello-pangea/dnd (drag and drop)
 
 **Backend**
 - Python / Flask
@@ -87,7 +87,9 @@ velocity-task-manager/
 │       ├── tasks.py         # CRUD for tasks, completion logging
 │       ├── processes.py     # Process and process-task management
 │       ├── routines.py      # Routine CRUD and daily toggle
-│       ├── data.py          # Aggregated data fetch, AI agent endpoint, analytics, quotes
+│       ├── data.py          # Aggregated data fetch (/api/data) and daily quote
+│       ├── analytics.py     # Analytics endpoint (/api/analytics)
+│       ├── ai.py            # AI agent endpoint (/api/chat) — Gemini + intent handlers
 │       └── calendar.py      # Google Calendar OAuth2 and event creation
 └── frontend/
     └── src/

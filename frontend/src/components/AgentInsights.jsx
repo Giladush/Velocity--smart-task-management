@@ -130,7 +130,7 @@ export default function AgentInsights({
         </div>
 
         {/* body lines */}
-        <div dir={rtl ? 'rtl' : 'ltr'} style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
+        <div dir={rtl ? 'rtl' : 'ltr'} style={{ display: 'flex', flexDirection: 'column', gap: 13, maxHeight: 'calc(100vh - 200px)', overflowY: 'auto' }}>
           {body.map((line, i) => {
             const common = {
               margin: 0, fontSize: 15.5, lineHeight: 1.7,

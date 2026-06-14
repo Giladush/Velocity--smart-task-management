@@ -401,7 +401,7 @@ export default function KanbanBoard({
           </div>
         </div>
 
-        <div className="p-4 flex-1 overflow-y-auto space-y-4">
+        <div className="p-3 flex-1 overflow-y-auto space-y-3">
           <div>
             <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Time</h4>
             <div className="flex flex-col gap-1">
@@ -473,9 +473,9 @@ export default function KanbanBoard({
             </div>
           </div>
 
-          <div className="pt-4 border-t border-slate-200/60">
-            <div className="text-center bg-slate-50 rounded-xl p-4 transition-all hover:bg-slate-100 shadow-sm">
-              <p className="text-sm text-slate-600 font-medium italic mb-2">"{quote.text}"</p>
+          <div className="pt-2 border-t border-slate-200/60">
+            <div className="text-center bg-slate-50 rounded-xl p-3 transition-all hover:bg-slate-100 shadow-sm">
+              <p className="text-sm text-slate-600 font-medium italic mb-1.5">"{quote.text}"</p>
               <p className="text-xs text-slate-400 font-semibold tracking-wider uppercase">— {quote.author}</p>
             </div>
           </div>
