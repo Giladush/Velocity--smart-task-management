@@ -1,4 +1,5 @@
 import React from 'react';
+import { useFlip, crudAnimation } from '../animations/TaskCrudMotion';
 
 export default function ListView({
   listTasks,
@@ -20,7 +21,28 @@ export default function ListView({
       </div>
 
       {/* Rows */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
+        <ListRows listTasks={listTasks} {...{
+          editingTaskId, editTitle, setEditTitle,
+          handleEditStart, handleEditSave, setEditingTaskId,
+          handleStatusChange, onDeleteTask, onUpdateTask,
+          addTaskToCalendar, highlightText, renderTagChips, isFilterMatch
+        }} />
+      </div>
+    </div>
+  );
+}
+
+function ListRows({
+  listTasks,
+  editingTaskId, editTitle, setEditTitle,
+  handleEditStart, handleEditSave, setEditingTaskId,
+  handleStatusChange, onDeleteTask, onUpdateTask,
+  addTaskToCalendar, highlightText, renderTagChips, isFilterMatch
+}) {
+  const { register } = useFlip();
+  return (
+    <>
         {listTasks.map((task, i) => {
           const isOverdue = task.due_date
             && new Date(task.due_date) < new Date(new Date().setHours(0, 0, 0, 0))
@@ -40,7 +62,12 @@ export default function ListView({
           return (
             <div
               key={task.id}
-              style={matched ? { boxShadow: shadows.join(', ') } : {}}
+              ref={register(task.id)}
+              style={{
+                ...(matched ? { boxShadow: shadows.join(', ') } : {}),
+                animation: crudAnimation({ kind: 'row', leaving: task.leaving, source: task.source }),
+                overflow: 'hidden',
+              }}
               className={`group flex items-center gap-3 px-5 py-3 border-b border-slate-100 hover:ring-1 hover:ring-inset hover:ring-indigo-200 hover:bg-indigo-50/20 transition-all ${task.status === 'Done' ? 'opacity-65' : ''}`}
             >
               {/* Status color bar */}
@@ -141,7 +168,6 @@ export default function ListView({
             </div>
           );
         })}
-      </div>
-    </div>
+    </>
   );
 }

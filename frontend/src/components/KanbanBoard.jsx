@@ -4,6 +4,7 @@ import TagPicker from './kanban/TagPicker';
 import TaskCard from './kanban/TaskCard';
 import ListView from './kanban/ListView';
 import { connectGoogleCalendar, createCalendarEvent, fetchDailyQuote, updateTask } from '../services/api';
+import { CrudKeyframes, crudAnimation } from './animations/TaskCrudMotion';
 
 export default function KanbanBoard({
   tasks, onAddTask, onUpdateTask, onDeleteTask, onDragEnd,
@@ -24,12 +25,70 @@ export default function KanbanBoard({
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState(() => localStorage.getItem('velocity_viewMode') || 'board');
 
+  // Transient animation state — never persisted
+  const [taskMeta, setTaskMeta] = useState({}); // {[id]: {source, leaving}}
+  const [leavingGhosts, setLeavingGhosts] = useState({}); // agent-deleted tasks kept alive for exit anim
+  const prevTaskIdsRef = useRef(new Set());
+  const prevTasksRef = useRef([]);
+  const handledDeletesRef = useRef(new Set()); // IDs going through handleDeleteTask
+
   const columns = ['To Do', 'In Progress', 'Done'];
 
 
   useEffect(() => {
     fetchDailyQuote().then(setQuote).catch(() => {});
   }, []);
+
+  // Sync animation state with tasks prop changes
+  useEffect(() => {
+    const currentIds = new Set(tasks.map(t => t.id));
+
+    if (prevTasksRef.current.length > 0) {
+      prevTasksRef.current.forEach(task => {
+        if (!currentIds.has(task.id)) {
+          if (!handledDeletesRef.current.has(task.id)) {
+            // Agent delete — create ghost so exit animation can play
+            setLeavingGhosts(prev => ({ ...prev, [task.id]: task }));
+            setTaskMeta(prev => ({ ...prev, [task.id]: { leaving: true, source: 'agent' } }));
+            setTimeout(() => {
+              setLeavingGhosts(prev => { const n = { ...prev }; delete n[task.id]; return n; });
+              setTaskMeta(prev => { const n = { ...prev }; delete n[task.id]; return n; });
+            }, 520);
+          } else {
+            // Manual delete complete — clean up
+            handledDeletesRef.current.delete(task.id);
+            setTaskMeta(prev => { const n = { ...prev }; delete n[task.id]; return n; });
+          }
+        }
+      });
+
+      const newIds = [...currentIds].filter(id => !prevTaskIdsRef.current.has(id));
+      if (newIds.length > 0) {
+        setTaskMeta(prev => {
+          const next = { ...prev };
+          newIds.forEach(id => { next[id] = { ...next[id], source: 'form' }; });
+          return next;
+        });
+        setTimeout(() => {
+          setTaskMeta(prev => {
+            const next = { ...prev };
+            newIds.forEach(id => { if (next[id] && !next[id].leaving) delete next[id]; });
+            return next;
+          });
+        }, 2000);
+      }
+    }
+
+    prevTasksRef.current = tasks;
+    prevTaskIdsRef.current = currentIds;
+  }, [tasks]);
+
+  // Delete with exit animation — waits 520ms before calling the real delete
+  const handleDeleteTask = (taskId) => {
+    handledDeletesRef.current.add(taskId);
+    setTaskMeta(prev => ({ ...prev, [taskId]: { source: 'form', leaving: true } }));
+    setTimeout(() => onDeleteTask(taskId), 520);
+  };
 
   useEffect(() => {
     const handleOutsideClick = (e) => {
@@ -264,7 +323,13 @@ export default function KanbanBoard({
     low: activeTasks.filter(t => t.urgency === 'low').length,
   };
 
-  const listTasks = [...tasks].sort((a, b) => {
+  // Merge ghost tasks (agent-deleted, animating out) into the display list
+  const ghostsList = Object.values(leavingGhosts);
+  const displayTasks = ghostsList.length > 0
+    ? [...tasks, ...ghostsList.filter(g => !tasks.some(t => t.id === g.id))]
+    : tasks;
+
+  const listTasks = [...displayTasks].sort((a, b) => {
     const filterResult = sortComparator(a, b);
     if (filterResult !== 0) return filterResult;
     const statusOrder = { 'To Do': 0, 'In Progress': 1, 'Done': 2 };
@@ -276,6 +341,7 @@ export default function KanbanBoard({
 
   return (
     <div className="flex-1 flex overflow-hidden bg-slate-50/50">
+      <CrudKeyframes />
 
       <main className="flex-1 flex flex-col min-w-0">
 
@@ -336,7 +402,7 @@ export default function KanbanBoard({
               <DragDropContext onDragEnd={onDragEnd}>
                 <div className="flex gap-5 h-full">
                   {columns.map(status => {
-                    let columnTasks = tasks.filter(t => t.status === status);
+                    let columnTasks = displayTasks.filter(t => t.status === status);
                     columnTasks = [...columnTasks].sort((a, b) => {
                       const r = sortComparator(a, b);
                       if (r !== 0) return r;
@@ -355,7 +421,7 @@ export default function KanbanBoard({
                               {status}
                               <span className="bg-white shadow-sm text-slate-500 text-xs py-1 px-2.5 rounded-full font-semibold border border-slate-200">{columnTasks.length}</span>
                             </h3>
-                            <div ref={provided.innerRef} {...provided.droppableProps} className="flex-1 overflow-y-auto p-3 flex flex-col gap-3 custom-scrollbar">
+                            <div ref={provided.innerRef} {...provided.droppableProps} className="flex-1 overflow-y-auto overflow-x-hidden p-3 flex flex-col gap-3 custom-scrollbar">
                               {columnTasks.map((task, index) => (
                                 <Draggable key={task.id.toString()} draggableId={task.id.toString()} index={index}>
                                   {(provided, snapshot) => (
@@ -365,13 +431,15 @@ export default function KanbanBoard({
                                       provided={provided}
                                       snapshot={snapshot}
                                       {...editProps}
-                                      onDeleteTask={onDeleteTask}
+                                      onDeleteTask={handleDeleteTask}
                                       onUpdateTask={onUpdateTask}
                                       addTaskToCalendar={addTaskToCalendar}
                                       highlightText={highlightText}
                                       renderTagChips={renderTagChips}
                                       searchQuery={searchQuery}
                                       isMatch={isFilterMatch(task)}
+                                      leaving={taskMeta[task.id]?.leaving || false}
+                                      source={taskMeta[task.id]?.source}
                                     />
                                   )}
                                 </Draggable>
@@ -388,10 +456,10 @@ export default function KanbanBoard({
             </div>
           ) : (
             <ListView
-              listTasks={listTasks}
+              listTasks={listTasks.map(t => ({ ...t, ...taskMeta[t.id] }))}
               {...editProps}
               handleStatusChange={handleStatusChange}
-              onDeleteTask={onDeleteTask}
+              onDeleteTask={handleDeleteTask}
               onUpdateTask={onUpdateTask}
               addTaskToCalendar={addTaskToCalendar}
               highlightText={(text) => highlightText(text, searchQuery.trim())}

@@ -1,5 +1,23 @@
 import React, { useState, useEffect, useRef } from 'react';
 
+const URL_REGEX = /(https?:\/\/[^\s]+)/g;
+function StepTitle({ title }) {
+  const parts = title.split(URL_REGEX);
+  return (
+    <>
+      {parts.map((part, i) =>
+        /^https?:\/\/[^\s]+$/.test(part) ? (
+          <a key={i} href={part} target="_blank" rel="noopener noreferrer"
+            className="text-indigo-600 underline break-all"
+            onClick={e => e.stopPropagation()}>
+            {part}
+          </a>
+        ) : part
+      )}
+    </>
+  );
+}
+
 export default function ProcessBoard({ processes, selectedProcessId, onUpdateTask, onDeleteTask, onCreateProcess, onDeleteProcess, onAddProcessTask }) {
   const [expandedId, setExpandedId] = useState(null);
   const [highlightedId, setHighlightedId] = useState(null);
@@ -200,7 +218,7 @@ export default function ProcessBoard({ processes, selectedProcessId, onUpdateTas
                                 <span className={`text-sm font-bold px-4 py-1.5 rounded-full shadow-sm border ${
                                   isCompleted ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-slate-600 bg-white border-slate-200'
                                 }`}>
-                                  {task.title}
+                                  <StepTitle title={task.title} />
                                 </span>
                                 <button
                                   onClick={(e) => { e.stopPropagation(); onDeleteTask(task.id); }}

@@ -67,7 +67,7 @@ def chat_with_stride():
         }}
 
         PAYLOAD INSTRUCTIONS:
-        - if intent='create_process': (CRITICAL: Use this for multi-step goals, projects, "תוכנית", "תהליך") payload = {{"process_title": "...", "process_description": "...", "tasks": ["task 1", "task 2"]}}
+        - if intent='create_process': (CRITICAL: Use this for multi-step goals, projects, "תוכנית", "תהליך") payload = {{"process_title": "...", "process_description": "..."}}
         - if intent='create_task': payload = {{"title": "...", "due_date": "YYYY-MM-DD" or null}}
         - if intent='create_routine': payload = {{"title": "...", "frequency": ["Sun", "Wed"]}} (CRITICAL: If specific days are mentioned, extract them to 'frequency' array using ONLY abbreviations: 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'. If no days mentioned, omit the 'frequency' key.)
         - if intent='delete_task': payload = {{"task_id": 123}} (find ID from open tasks)
@@ -77,7 +77,7 @@ def chat_with_stride():
         - if intent='complete_tasks': payload = {{"target_date": "YYYY-MM-DD" or "today" or "all"}}
         - if intent='advice': payload = {{"advice_text": "Warm, comprehensive Markdown advice covering ALL tasks — priorities, reasoning, and encouragement. CRITICAL RULES: (1) The open_tasks list contains ONLY standalone tasks — mention them by name freely. (2) For processes: mention ONLY the process title and how many steps remain (e.g. 'נשארו לך 3 שלבים בתהליך X'). NEVER mention individual step names from any process, under any circumstances."}}
         - if intent='navigate': payload = {{"view": "processes" or "tasks" or "routines", "process_id": int}}
-        - if intent='fetch_emails': (Use when user asks to fetch/search emails by topic, e.g. "משוך לי מיילים דחופים", "מיילים שקשורים לעבודה", "מיילים על הטיול") payload = {{"query": "the topic or category in Hebrew"}}
+        - if intent='fetch_emails': (Use when user asks to fetch/search emails by topic, e.g. "משוך לי מיילים דחופים", "מיילים שקשורים לעבודה", "מיילים על הטיול") payload = {{"query": "the topic or category in Hebrew", "keywords": ["english keyword 1", "english keyword 2", "hebrew keyword"]}} — extract 2-4 specific search keywords (in both Hebrew and English if applicable) that would appear in matching email subjects or bodies.
         - if intent='general_chat': (also use this when the user asks which tasks they have for a specific date or day, e.g. "מה המשימות שלי ליום רביעי?" or "מה יש לי ב-20.6?". In that case, resolve the requested date using today's date, filter open_tasks by due_date, and list the matching tasks in the reply. If no tasks match, say so warmly.) payload = {{}}
         """
 
@@ -106,14 +106,26 @@ def chat_with_stride():
         action = None
 
         if intent == "create_process":
-            new_process = Process(
-                title=payload.get("process_title", "תהליך חדש"),
-                description=payload.get("process_description", ""),
-                user_id=current_user_id
-            )
+            topic = payload.get("process_title", "תהליך חדש")
+            description = payload.get("process_description", "")
+            tasks_to_create = _research_and_build_steps(topic, description, chosen_model_name)
+
+            if not tasks_to_create:
+                try:
+                    fallback_response = current_model.generate_content(
+                        f'Create 5 specific actionable steps in Hebrew for: "{topic}". Return ONLY a JSON array of strings.',
+                        generation_config=genai.GenerationConfig(response_mime_type="application/json")
+                    )
+                    fallback_steps = json.loads(fallback_response.text)
+                    if isinstance(fallback_steps, list):
+                        tasks_to_create = fallback_steps
+                except Exception:
+                    tasks_to_create = []
+
+            new_process = Process(title=topic, description=description, user_id=current_user_id)
             db.session.add(new_process)
             db.session.flush()
-            for item in payload.get("tasks", []):
+            for item in tasks_to_create:
                 t_title = item.get("title") if isinstance(item, dict) else item
                 if t_title:
                     db.session.add(Task(title=str(t_title), process_id=new_process.id, user_id=current_user_id))
@@ -201,13 +213,186 @@ def chat_with_stride():
         return jsonify({"error": "AI Processing Failed"}), 500
 
 
+def _get_search_query(topic, model_name):
+    try:
+        m = genai.GenerativeModel(model_name)
+        r = m.generate_content(
+            f"""Given this task topic (may be in Hebrew): "{topic}"
+Generate the single best web search query to find detailed, specific how-to content about it.
+Rules:
+- Use English unless the topic is specifically about Israeli/Hebrew-language content (e.g. Israeli dishes, Hebrew songs, local services)
+- Be specific: include the exact name, artist, dish name, etc.
+- Aim for a query that would return tutorials, guides, tabs, recipes, or step-by-step resources
+- Return ONLY the search query string, nothing else.""",
+            generation_config=genai.GenerationConfig(response_mime_type="text/plain")
+        )
+        query = r.text.strip().strip('"')
+        print(f"[Research] Search query: '{query}'")
+        return query
+    except Exception as e:
+        print(f"[Research] Query generation failed: {e}, using topic as-is")
+        return topic
+
+
+def _fetch_web_context(topic, model_name):
+    import requests as req
+    from urllib.parse import quote_plus, unquote
+    from html.parser import HTMLParser
+    import re
+
+    class _TextExtractor(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self._skip = 0
+            self._chunks = []
+            self._SKIP_TAGS = {'script', 'style', 'nav', 'header', 'footer', 'aside', 'noscript'}
+
+        def handle_starttag(self, tag, attrs):
+            if tag in self._SKIP_TAGS:
+                self._skip += 1
+
+        def handle_endtag(self, tag):
+            if tag in self._SKIP_TAGS:
+                self._skip = max(0, self._skip - 1)
+
+        def handle_data(self, data):
+            if self._skip == 0:
+                t = data.strip()
+                if len(t) > 20:
+                    self._chunks.append(t)
+
+        def get_text(self):
+            return ' '.join(self._chunks)
+
+    headers = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120.0 Safari/537.36'}
+    search_query = _get_search_query(topic, model_name)
+
+    try:
+        ddg = req.get(f"https://html.duckduckgo.com/html/?q={quote_plus(search_query)}", headers=headers, timeout=10)
+        result_blocks = re.findall(
+            r'uddg=([^&"]+)[^>]*>.*?class="result__snippet"[^>]*>(.*?)</div>',
+            ddg.text, re.DOTALL
+        )
+        seen = set()
+        results = []
+        for url_enc, snippet_html in result_blocks:
+            url = unquote(url_enc)
+            if url in seen or 'duckduckgo.com' in url:
+                continue
+            seen.add(url)
+            snippet = re.sub(r'<[^>]+>', '', snippet_html).strip()
+            results.append((url, snippet))
+        print(f"[Research] DDG returned {len(results)} results for: {search_query}")
+    except Exception as e:
+        print(f"[Research] DDG search failed: {e}")
+        return None, None
+
+    if not results:
+        return None, None
+
+    chunks = []
+    fetched_urls = []
+    for url, snippet in results[:6]:
+        if len(fetched_urls) >= 2:
+            break
+        try:
+            page = req.get(url, headers=headers, timeout=8, allow_redirects=True)
+            ex = _TextExtractor()
+            ex.feed(page.text)
+            text = ex.get_text()
+            if len(text) > 300:
+                chunks.append(f"[Source: {url}]\n{text[:4000]}")
+                fetched_urls.append(url)
+                print(f"[Research] Fetched {len(text)} chars from {url}")
+            else:
+                print(f"[Research] Skipped JS-only page ({len(text)} chars): {url}")
+        except Exception as e:
+            print(f"[Research] Failed to fetch {url}: {e}")
+
+    if not chunks:
+        snippet_text = '\n'.join(f"- {url}: {snip}" for url, snip in results[:5])
+        print("[Research] Using DDG snippets as fallback")
+        return snippet_text, [r[0] for r in results[:3]]
+
+    return '\n\n---\n\n'.join(chunks), fetched_urls
+
+
+def _research_and_build_steps(topic, description, model_name):
+    import traceback
+    web_context, source_urls = _fetch_web_context(topic, model_name)
+    print(f"[Research] Web context available: {bool(web_context)}, sources: {source_urls}")
+
+    try:
+        steps_model = genai.GenerativeModel(model_name)
+
+        if web_context:
+            steps_prompt = f"""
+            The user wants a step-by-step process for: "{topic}"
+            Context: {description}
+
+            Here is REAL content fetched from the web about this topic:
+            ---
+            {web_context[:6000]}
+            ---
+
+            Using the specific details in that content (exact names, techniques, ingredients, tabs, BPM, tools, etc.),
+            create 4-6 actionable steps in Hebrew for "{topic}".
+
+            Rules:
+            - Reference SPECIFIC details from the content above (not generic advice)
+            - Each step must be immediately actionable
+            - Do NOT include a step about "finding" or "searching" — the source URLs are added separately
+            - Steps in Hebrew
+            - Return ONLY a JSON array of strings: ["step 1", "step 2", ...]
+            """
+        else:
+            steps_prompt = f"""
+            Create 5-7 specific, actionable steps in Hebrew for: "{topic}"
+            Context: {description}
+
+            Rules:
+            - Be as specific as possible — name exact techniques, platforms, ingredient amounts, tools, etc.
+            - Each step must be immediately actionable
+            - Steps in Hebrew
+            - Return ONLY a JSON array of strings: ["step 1", "step 2", ...]
+            """
+
+        steps_response = steps_model.generate_content(
+            steps_prompt,
+            generation_config=genai.GenerationConfig(response_mime_type="application/json")
+        )
+        result = json.loads(steps_response.text)
+        steps = None
+        if isinstance(result, list):
+            steps = result
+        elif isinstance(result, dict):
+            for v in result.values():
+                if isinstance(v, list):
+                    steps = v
+                    break
+
+        if steps is None:
+            return None
+
+        if source_urls:
+            url_steps = [f"מקור: {url}" for url in source_urls]
+            return url_steps + steps
+
+        return steps
+    except Exception as e:
+        print(f"[Research] Steps generation failed: {e}")
+        traceback.print_exc()
+        return None
+
+
 def _handle_fetch_emails(payload, request_data, current_model):
     from routes.calendar import _credentials_store
     from google.oauth2.credentials import Credentials
     from googleapiclient.discovery import build as google_build
     import re
 
-    query = payload.get("query", "דחופים")
+    topic = payload.get("query", "")
+    keywords = payload.get("keywords", [])
     cal_token = request_data.get("cal_token")
 
     if not cal_token or cal_token not in _credentials_store:
@@ -229,18 +414,23 @@ def _handle_fetch_emails(payload, request_data, current_model):
         )
         gmail = google_build('gmail', 'v1', credentials=creds)
 
+        all_terms = list({topic} | set(keywords)) if keywords else [topic]
+        subject_terms = " OR ".join(f'subject:({t})' for t in all_terms)
+        body_terms = " OR ".join(f'({t})' for t in all_terms)
+        gmail_query = f'({subject_terms} OR {body_terms}) in:inbox'
+
         results = gmail.users().messages().list(
             userId='me',
-            q=f'{query} in:inbox',
-            maxResults=10
+            q=gmail_query,
+            maxResults=20
         ).execute()
         message_refs = results.get('messages', [])
 
         if not message_refs:
-            return {"type": "SET_EMAILS", "payload": {"emails": [], "query": query}}
+            return {"type": "SET_EMAILS", "payload": {"emails": [], "query": topic}}
 
         emails_raw = []
-        for ref in message_refs[:8]:
+        for ref in message_refs[:20]:
             msg = gmail.users().messages().get(
                 userId='me', id=ref['id'],
                 format='metadata',
@@ -255,12 +445,20 @@ def _handle_fetch_emails(payload, request_data, current_model):
             })
 
         email_prompt = f"""
-        For each of the following emails, write a single short sentence in Hebrew summarizing what it says or what action it requires.
-        Return a JSON array with fields: id, subject, sender, summary.
-        CRITICAL: All string values must be valid JSON — escape any double-quote characters inside strings with a backslash.
+        The user is looking for emails about: "{topic}"
+        Keywords they care about: {json.dumps(all_terms, ensure_ascii=False)}
+
+        Below is a list of emails fetched from Gmail.
+        Your job:
+        1. FILTER: Keep ONLY emails that are genuinely relevant to the topic "{topic}". Discard unrelated emails.
+        2. SUMMARIZE: For each kept email, write one short sentence in Hebrew describing what it says or requires.
+
+        Return a JSON array containing ONLY the relevant emails, with fields: id, subject, sender, summary.
+        If none are relevant, return an empty array [].
+        CRITICAL: Return valid JSON only. Escape any double-quotes inside string values.
 
         Emails:
-        {json.dumps(emails_raw, ensure_ascii=True)}
+        {json.dumps(emails_raw, ensure_ascii=False)}
         """
 
         email_response = current_model.generate_content(
@@ -280,7 +478,7 @@ def _handle_fetch_emails(payload, request_data, current_model):
         if not isinstance(summarized, list):
             summarized = []
 
-        return {"type": "SET_EMAILS", "payload": {"emails": summarized, "query": query}}
+        return {"type": "SET_EMAILS", "payload": {"emails": summarized, "query": topic}}
 
     except Exception as gmail_err:
         print(f"[Gmail Error] {gmail_err}")

@@ -1,17 +1,25 @@
 import React from 'react';
+import { crudAnimation } from '../animations/TaskCrudMotion';
 
 export default function TaskCard({
   task, status, provided, snapshot,
   editingTaskId, editTitle, setEditTitle,
   handleEditStart, handleEditSave, setEditingTaskId,
   onDeleteTask, onUpdateTask, addTaskToCalendar,
-  highlightText, renderTagChips, searchQuery, isMatch
+  highlightText, renderTagChips, searchQuery, isMatch,
+  leaving, source,
 }) {
   return (
     <div
       ref={provided.innerRef}
       {...provided.draggableProps}
       {...provided.dragHandleProps}
+      style={{
+        ...provided.draggableProps.style,
+        ...(!snapshot.isDragging && {
+          animation: crudAnimation({ kind: 'card', leaving, source }),
+        }),
+      }}
       className={`group relative bg-white p-4 rounded-xl shadow-sm border transition-all ${
         snapshot.isDragging
           ? 'shadow-lg ring-2 ring-indigo-400 rotate-2 cursor-grabbing'
