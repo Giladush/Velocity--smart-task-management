@@ -2,10 +2,32 @@ from flask import Blueprint, jsonify, request
 from models import db, Task, Process, Routine, CompletionLog
 from datetime import date
 import json
-import google.generativeai as genai
+import os
+from google import genai as _genai_sdk
+from google.genai import types as genai_types
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
 ai_bp = Blueprint('ai', __name__)
+
+_genai_client = None
+_cached_model_name = None
+
+def _get_genai_client():
+    global _genai_client
+    if _genai_client is None:
+        _genai_client = _genai_sdk.Client(api_key=os.getenv('GEMINI_API_KEY'))
+    return _genai_client
+
+def _get_model_name():
+    global _cached_model_name
+    if _cached_model_name is None:
+        try:
+            available = [m.name for m in _get_genai_client().models.list()
+                         if 'generateContent' in (getattr(m, 'supported_actions', None) or [])]
+            _cached_model_name = next((n for n in available if 'flash' in n or 'pro' in n), None) or 'gemini-2.5-flash'
+        except Exception:
+            _cached_model_name = 'gemini-2.5-flash'
+    return _cached_model_name
 
 
 @ai_bp.route('/api/chat', methods=['POST'])
@@ -21,7 +43,7 @@ def chat_with_stride():
 
         today_str = date.today().isoformat()
 
-        open_tasks = [{"id": t.id, "title": t.title, "due_date": t.due_date}
+        open_tasks = [{"id": t.id, "title": t.title, "due_date": str(t.due_date) if t.due_date else None}
                       for t in Task.query.filter(
                           Task.is_completed == False,
                           Task.user_id == current_user_id,
@@ -62,7 +84,7 @@ def chat_with_stride():
         You must respond ONLY with a valid JSON object in this exact format:
         {{
           "reply": "Your conversational, warm response in HEBREW — 1-2 sentences max for non-advice intents.",
-          "intent": "ONE_OF: create_process, create_task, create_routine, delete_task, delete_tasks, delete_routine, filter, complete_tasks, advice, navigate, fetch_emails, general_chat",
+          "intent": "ONE_OF: create_process, create_task, create_routine, delete_process, delete_task, delete_tasks, delete_routine, filter, complete_task, complete_tasks, advice, navigate, fetch_emails, general_chat",
           "payload": {{ ... see instructions below ... }}
         }}
 
@@ -70,27 +92,25 @@ def chat_with_stride():
         - if intent='create_process': (CRITICAL: Use this for multi-step goals, projects, "תוכנית", "תהליך") payload = {{"process_title": "...", "process_description": "..."}}
         - if intent='create_task': payload = {{"title": "...", "due_date": "YYYY-MM-DD" or null}}
         - if intent='create_routine': payload = {{"title": "...", "frequency": ["Sun", "Wed"]}} (CRITICAL: If specific days are mentioned, extract them to 'frequency' array using ONLY abbreviations: 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'. If no days mentioned, omit the 'frequency' key.)
+        - if intent='delete_process': payload = {{"process_id": 123}} (find ID from Existing processes)
         - if intent='delete_task': payload = {{"task_id": 123}} (find ID from open tasks)
         - if intent='delete_tasks': payload = {{"target_date": "YYYY-MM-DD" or "today" or "all"}}
         - if intent='delete_routine': payload = {{"routine_id": 123}} (find ID from Existing routines)
         - if intent='filter': payload = {{"filter_value": "next_X_days" or "custom" or "today", "days_count": int, "custom_date": "YYYY-MM-DD"}}
-        - if intent='complete_tasks': payload = {{"target_date": "YYYY-MM-DD" or "today" or "all"}}
+        - if intent='complete_task': (single task by name) payload = {{"task_id": 123}} (find ID from open tasks by matching the task name the user mentioned)
+        - if intent='complete_tasks': (batch) payload = {{"target_date": "YYYY-MM-DD" or "today" or "all"}} OR {{"target_urgency": "high" or "low" or "normal"}} — use target_urgency when user says "סמן את כל הדחופות" or similar urgency-based filter
         - if intent='advice': payload = {{"advice_text": "Warm, comprehensive Markdown advice covering ALL tasks — priorities, reasoning, and encouragement. CRITICAL RULES: (1) The open_tasks list contains ONLY standalone tasks — mention them by name freely. (2) For processes: mention ONLY the process title and how many steps remain (e.g. 'נשארו לך 3 שלבים בתהליך X'). NEVER mention individual step names from any process, under any circumstances."}}
         - if intent='navigate': payload = {{"view": "processes" or "tasks" or "routines", "process_id": int}}
         - if intent='fetch_emails': (Use when user asks to fetch/search emails by topic, e.g. "משוך לי מיילים דחופים", "מיילים שקשורים לעבודה", "מיילים על הטיול") payload = {{"query": "the topic or category in Hebrew", "keywords": ["english keyword 1", "english keyword 2", "hebrew keyword"]}} — extract 2-4 specific search keywords (in both Hebrew and English if applicable) that would appear in matching email subjects or bodies.
         - if intent='general_chat': (also use this when the user asks which tasks they have for a specific date or day, e.g. "מה המשימות שלי ליום רביעי?" or "מה יש לי ב-20.6?". In that case, resolve the requested date using today's date, filter open_tasks by due_date, and list the matching tasks in the reply. If no tasks match, say so warmly.) payload = {{}}
         """
 
-        available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        if not available_models:
-            raise Exception("No active generative models found.")
+        chosen_model_name = _get_model_name()
 
-        chosen_model_name = next((name for name in available_models if 'flash' in name or 'pro' in name), available_models[-1])
-        current_model = genai.GenerativeModel(chosen_model_name)
-
-        response = current_model.generate_content(
-            prompt,
-            generation_config=genai.GenerationConfig(response_mime_type="application/json")
+        response = _get_genai_client().models.generate_content(
+            model=chosen_model_name,
+            contents=prompt,
+            config=genai_types.GenerateContentConfig(response_mime_type="application/json")
         )
 
         result = json.loads(response.text)
@@ -112,9 +132,10 @@ def chat_with_stride():
 
             if not tasks_to_create:
                 try:
-                    fallback_response = current_model.generate_content(
-                        f'Create 5 specific actionable steps in Hebrew for: "{topic}". Return ONLY a JSON array of strings.',
-                        generation_config=genai.GenerationConfig(response_mime_type="application/json")
+                    fallback_response = _get_genai_client().models.generate_content(
+                        model=chosen_model_name,
+                        contents=f'Create 5 specific actionable steps in Hebrew for: "{topic}". Return ONLY a JSON array of strings.',
+                        config=genai_types.GenerateContentConfig(response_mime_type="application/json")
                     )
                     fallback_steps = json.loads(fallback_response.text)
                     if isinstance(fallback_steps, list):
@@ -133,7 +154,12 @@ def chat_with_stride():
             action = {"type": "NAVIGATE", "payload": {"view": "processes", "process_id": new_process.id}}
 
         elif intent == "create_task":
-            db.session.add(Task(title=payload.get("title"), due_date=payload.get("due_date"), user_id=current_user_id))
+            due_date_raw = payload.get("due_date")
+            try:
+                due_date = date.fromisoformat(due_date_raw) if due_date_raw else None
+            except (ValueError, TypeError):
+                due_date = None
+            db.session.add(Task(title=payload.get("title"), due_date=due_date, user_id=current_user_id))
             db.session.commit()
             action = {"type": "REFRESH_DATA"}
 
@@ -146,6 +172,15 @@ def chat_with_stride():
                 new_routine.frequency = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
             db.session.add(new_routine)
             db.session.commit()
+            action = {"type": "REFRESH_DATA"}
+
+        elif intent == "delete_process":
+            process_id = payload.get("process_id")
+            if process_id:
+                process = Process.query.filter_by(id=process_id, user_id=current_user_id).first()
+                if process:
+                    db.session.delete(process)
+                    db.session.commit()
             action = {"type": "REFRESH_DATA"}
 
         elif intent == "delete_task":
@@ -172,13 +207,35 @@ def chat_with_stride():
                 db.session.commit()
             action = {"type": "REFRESH_DATA"}
 
+        elif intent == "complete_task":
+            task_id = payload.get("task_id")
+            if task_id:
+                task = Task.query.filter_by(id=task_id, user_id=current_user_id, is_completed=False).first()
+                if task:
+                    task.is_completed = True
+                    task.status = "Done"
+                    today_date = date.today()
+                    existing_log = CompletionLog.query.filter_by(task_id=task.id, completed_date=today_date).first()
+                    if not existing_log:
+                        db.session.add(CompletionLog(user_id=current_user_id, task_id=task.id, completed_date=today_date))
+                    db.session.commit()
+            action = {"type": "REFRESH_DATA"}
+
         elif intent == "complete_tasks":
             target_date = payload.get("target_date")
+            target_urgency = payload.get("target_urgency")
             today_date = date.today()
-            if target_date == "all":
+            if target_urgency:
+                tasks_to_complete = Task.query.filter_by(
+                    is_completed=False, urgency=target_urgency, user_id=current_user_id
+                ).all()
+            elif target_date == "all":
                 tasks_to_complete = Task.query.filter_by(is_completed=False, user_id=current_user_id).all()
             else:
-                actual_date = today_str if target_date == "today" else target_date
+                try:
+                    actual_date = date.fromisoformat(today_str if target_date == "today" else target_date)
+                except (ValueError, TypeError):
+                    actual_date = today_date
                 tasks_to_complete = Task.query.filter_by(due_date=actual_date, is_completed=False, user_id=current_user_id).all()
             for task in tasks_to_complete:
                 task.is_completed = True
@@ -199,7 +256,7 @@ def chat_with_stride():
             action = {"type": "SET_ADVICE", "payload": payload}
 
         elif intent == "fetch_emails":
-            action = _handle_fetch_emails(payload, data, current_model)
+            action = _handle_fetch_emails(payload, data, chosen_model_name)
 
         if action is None and intent == 'general_chat' and ai_reply:
             action = {"type": "SHOW_REPLY", "payload": {"advice_text": ai_reply}}
@@ -215,16 +272,16 @@ def chat_with_stride():
 
 def _get_search_query(topic, model_name):
     try:
-        m = genai.GenerativeModel(model_name)
-        r = m.generate_content(
-            f"""Given this task topic (may be in Hebrew): "{topic}"
+        r = _get_genai_client().models.generate_content(
+            model=model_name,
+            contents=f"""Given this task topic (may be in Hebrew): "{topic}"
 Generate the single best web search query to find detailed, specific how-to content about it.
 Rules:
 - Use English unless the topic is specifically about Israeli/Hebrew-language content (e.g. Israeli dishes, Hebrew songs, local services)
 - Be specific: include the exact name, artist, dish name, etc.
 - Aim for a query that would return tutorials, guides, tabs, recipes, or step-by-step resources
 - Return ONLY the search query string, nothing else.""",
-            generation_config=genai.GenerationConfig(response_mime_type="text/plain")
+            config=genai_types.GenerateContentConfig(response_mime_type="text/plain")
         )
         query = r.text.strip().strip('"')
         print(f"[Research] Search query: '{query}'")
@@ -323,8 +380,6 @@ def _research_and_build_steps(topic, description, model_name):
     print(f"[Research] Web context available: {bool(web_context)}, sources: {source_urls}")
 
     try:
-        steps_model = genai.GenerativeModel(model_name)
-
         if web_context:
             steps_prompt = f"""
             The user wants a step-by-step process for: "{topic}"
@@ -357,9 +412,10 @@ def _research_and_build_steps(topic, description, model_name):
             - Return ONLY a JSON array of strings: ["step 1", "step 2", ...]
             """
 
-        steps_response = steps_model.generate_content(
-            steps_prompt,
-            generation_config=genai.GenerationConfig(response_mime_type="application/json")
+        steps_response = _get_genai_client().models.generate_content(
+            model=model_name,
+            contents=steps_prompt,
+            config=genai_types.GenerateContentConfig(response_mime_type="application/json")
         )
         result = json.loads(steps_response.text)
         steps = None
@@ -385,7 +441,7 @@ def _research_and_build_steps(topic, description, model_name):
         return None
 
 
-def _handle_fetch_emails(payload, request_data, current_model):
+def _handle_fetch_emails(payload, request_data, model_name):
     from routes.calendar import _credentials_store
     from google.oauth2.credentials import Credentials
     from googleapiclient.discovery import build as google_build
@@ -461,9 +517,10 @@ def _handle_fetch_emails(payload, request_data, current_model):
         {json.dumps(emails_raw, ensure_ascii=False)}
         """
 
-        email_response = current_model.generate_content(
-            email_prompt,
-            generation_config=genai.GenerationConfig(response_mime_type="application/json")
+        email_response = _get_genai_client().models.generate_content(
+            model=model_name,
+            contents=email_prompt,
+            config=genai_types.GenerateContentConfig(response_mime_type="application/json")
         )
         try:
             summarized = json.loads(email_response.text)

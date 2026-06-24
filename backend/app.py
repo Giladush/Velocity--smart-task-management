@@ -3,7 +3,6 @@ from flask_cors import CORS
 from models import db
 from flask_migrate import Migrate
 import os
-import google.generativeai as genai
 from dotenv import load_dotenv
 from flask_jwt_extended import JWTManager
 from datetime import timedelta
@@ -25,12 +24,6 @@ app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(os.path.dirnam
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 migrate = Migrate(app, db, render_as_batch=True)
-
-api_key = os.getenv("GEMINI_API_KEY")
-if api_key:
-    genai.configure(api_key=api_key)
-else:
-    print("Warning: GEMINI_API_KEY not found in .env file!")
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(tasks_bp)

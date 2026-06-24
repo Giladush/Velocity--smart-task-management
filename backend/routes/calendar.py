@@ -5,7 +5,8 @@ from flask import Blueprint, jsonify, request, redirect
 from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
-import google.generativeai as genai
+from google import genai as _genai_sdk
+from google.genai import types as genai_types
 
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
@@ -29,6 +30,25 @@ client_config = {
 
 _credentials_store = {}
 _pkce_store = {}
+_cached_model_name = None
+_genai_client = None
+
+def _get_genai_client():
+    global _genai_client
+    if _genai_client is None:
+        _genai_client = _genai_sdk.Client(api_key=os.getenv('GEMINI_API_KEY'))
+    return _genai_client
+
+def _get_model_name():
+    global _cached_model_name
+    if _cached_model_name is None:
+        try:
+            available = [m.name for m in _get_genai_client().models.list()
+                         if 'generateContent' in (getattr(m, 'supported_actions', None) or [])]
+            _cached_model_name = next((n for n in available if 'flash' in n or 'pro' in n), None) or 'gemini-2.5-flash'
+        except Exception:
+            _cached_model_name = 'gemini-2.5-flash'
+    return _cached_model_name
 
 
 def create_google_flow():
@@ -165,12 +185,10 @@ def get_urgent_emails():
         {json.dumps(emails, ensure_ascii=False)}
         """
 
-        available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-        chosen = next((n for n in available_models if 'flash' in n or 'pro' in n), available_models[-1])
-        model = genai.GenerativeModel(chosen)
-        response = model.generate_content(
-            prompt,
-            generation_config=genai.GenerationConfig(response_mime_type="application/json")
+        response = _get_genai_client().models.generate_content(
+            model=_get_model_name(),
+            contents=prompt,
+            config=genai_types.GenerateContentConfig(response_mime_type="application/json")
         )
 
         urgent = json.loads(response.text)

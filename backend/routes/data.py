@@ -56,7 +56,7 @@ def get_all_data():
                     "is_completed": t.is_completed,
                     "status": t.status if t.status else ("Done" if t.is_completed else "To Do"),
                     "is_routine": False,
-                    "due_date": t.due_date,
+                    "due_date": t.due_date.isoformat() if t.due_date else None,
                     "created_at": t.created_at.strftime('%Y-%m-%dT%H:%M:%SZ') if t.created_at else None,
                     "urgency": t.urgency or 'normal',
                     "tags": [x.strip() for x in t.tags.split(',') if x.strip()] if t.tags else []
@@ -77,7 +77,7 @@ def get_all_data():
                 "is_completed": t.is_completed,
                 "status": t.status if t.status else ("Done" if t.is_completed else "To Do"),
                 "is_routine": False,
-                "due_date": t.due_date,
+                "due_date": t.due_date.isoformat() if t.due_date else None,
                 "created_at": t.created_at.strftime('%Y-%m-%dT%H:%M:%SZ') if t.created_at else None,
                 "urgency": t.urgency or 'normal',
                 "tags": [x.strip() for x in t.tags.split(',') if x.strip()] if t.tags else []

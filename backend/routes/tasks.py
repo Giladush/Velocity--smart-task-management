@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 from models import db, Task, Routine, CompletionLog
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date as date_type
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
 tasks_bp = Blueprint('tasks', __name__)
@@ -19,10 +19,16 @@ def add_task():
     if not title:
         return jsonify({"error": "Task title is required"}), 400
 
+    due_date_raw = data.get('due_date')
+    try:
+        due_date = date_type.fromisoformat(due_date_raw) if due_date_raw else None
+    except (ValueError, TypeError):
+        due_date = None
+
     new_task = Task(
         title=title,
         process_id=data.get('process_id'),
-        due_date=data.get('due_date'),
+        due_date=due_date,
         user_id=current_user_id,
         urgency=urgency,
         tags=tags_str
@@ -96,7 +102,11 @@ def update_task(task_id):
     if 'title' in data:
         task.title = data['title']
     if 'due_date' in data:
-        task.due_date = data['due_date']
+        due_date_raw = data['due_date']
+        try:
+            task.due_date = date_type.fromisoformat(due_date_raw) if due_date_raw else None
+        except (ValueError, TypeError):
+            task.due_date = None
 
     db.session.commit()
     return jsonify({

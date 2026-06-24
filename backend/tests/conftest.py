@@ -7,7 +7,7 @@ from models import db as _db
 def app():
     flask_app.config['TESTING'] = True
     flask_app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
-    flask_app.config['JWT_SECRET_KEY'] = 'test-secret'
+    flask_app.config['JWT_SECRET_KEY'] = 'test-secret-key-that-is-long-enough-for-sha256'
     with flask_app.app_context():
         _db.create_all()
         yield flask_app

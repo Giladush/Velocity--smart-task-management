@@ -10,23 +10,28 @@ A fullstack productivity app that combines task management, habit tracking, mult
 - **Kanban board** with drag-and-drop across To Do, In Progress, and Done columns
 - **List view** as an alternative to the board — toggle persists across sessions
 - Urgency levels (High / Normal / Low), due dates, and custom tags per task
+- Inline due date editing directly on each task card
 - Smart date filters: today, next N days, or a specific date
+- Enter/exit animations when tasks are created or deleted
 
 ### Processes
 - Create structured, multi-step projects with sub-tasks
 - Visual progress bar per process based on completed tasks
 - Navigate directly to any process from the AI agent
+- Enter/exit animations when processes are created or deleted
 
 ### Routines
 - Define recurring tasks by specific days of the week (e.g., Mon / Wed / Fri)
 - Individual streak counter per routine
 - Routines appear automatically on their scheduled days
+- Inline editing of routine title and scheduled days
+- Enter/exit animations when routines are created or deleted
 
 ### AI Agent (Stride AI)
 A natural-language assistant in Hebrew that understands intent and acts on it:
 - **Create** tasks, routines, or full multi-step processes from a single sentence
-- **Delete** tasks or routines by name
-- **Complete** tasks in bulk (today's tasks, all tasks, or by date)
+- **Delete** tasks, processes, or routines by name
+- **Complete** a single task by name, or in bulk — by date, urgency level, or all at once
 - **Filter** the board by date range or specific day
 - **Navigate** to a specific process or view
 - **Advice** — gives a warm, comprehensive review of all open tasks with priorities and reasoning
@@ -38,7 +43,7 @@ A modal shown on login with a personalized greeting (morning / afternoon / eveni
 ### Analytics
 - Weekly task completion chart (last 7 days)
 - Per-process progress breakdown
-- Open tasks by priority level (High / Normal / Low)
+- Open tasks by urgency level (High / Normal / Low)
 
 ### Streak System
 A daily streak that increments if at least one item was completed that day — counting standalone tasks, process tasks, and routines.
@@ -66,9 +71,10 @@ A daily streak that increments if at least one item was completed that day — c
 - Python / Flask
 - Flask Blueprints (modular route structure)
 - Flask-SQLAlchemy (ORM)
+- Flask-Migrate / Alembic (schema migrations)
 - Flask-JWT-Extended (authentication)
-- Google Generative AI — Gemini (AI agent)
-- Google OAuth2 (Calendar integration)
+- Google GenAI (`google-genai`) — Gemini AI agent
+- Google OAuth2 (Calendar + Gmail integration)
 
 **Database**
 - SQLite
@@ -82,15 +88,23 @@ velocity-task-manager/
 ├── backend/
 │   ├── app.py               # App factory, config, blueprint registration
 │   ├── models.py            # SQLAlchemy models: User, Task, Process, Routine, CompletionLog
-│   └── routes/
-│       ├── auth.py          # Register, login, /api/me
-│       ├── tasks.py         # CRUD for tasks, completion logging
-│       ├── processes.py     # Process and process-task management
-│       ├── routines.py      # Routine CRUD and daily toggle
-│       ├── data.py          # Aggregated data fetch (/api/data) and daily quote
-│       ├── analytics.py     # Analytics endpoint (/api/analytics)
-│       ├── ai.py            # AI agent endpoint (/api/chat) — Gemini + intent handlers
-│       └── calendar.py      # Google Calendar OAuth2 and event creation
+│   ├── requirements.txt
+│   ├── migrations/          # Alembic migration files
+│   ├── routes/
+│   │   ├── auth.py          # Register, login, /api/me
+│   │   ├── tasks.py         # CRUD for tasks, completion logging
+│   │   ├── processes.py     # Process and process-task management
+│   │   ├── routines.py      # Routine CRUD and daily toggle
+│   │   ├── data.py          # Aggregated data fetch (/api/data) and daily quote
+│   │   ├── analytics.py     # Analytics endpoint (/api/analytics)
+│   │   ├── ai.py            # AI agent endpoint (/api/chat) — Gemini + intent handlers
+│   │   └── calendar.py      # Google OAuth2, Calendar event creation, Gmail fetch
+│   └── tests/
+│       ├── conftest.py
+│       ├── test_auth.py
+│       ├── test_tasks.py
+│       ├── test_routines.py
+│       └── test_streak.py
 └── frontend/
     └── src/
         ├── App.jsx                  # Root state, routing, event handlers
@@ -101,11 +115,11 @@ velocity-task-manager/
             ├── Sidebar.jsx          # Navigation, streak, AI chat input
             ├── KanbanBoard.jsx      # Board/list toggle, filtering
             ├── kanban/
-            │   ├── TaskCard.jsx
-            │   ├── ListView.jsx
+            │   ├── TaskCard.jsx     # Task card with inline due date editing
+            │   ├── ListView.jsx     # List view with inline due date editing
             │   └── TagPicker.jsx
             ├── ProcessBoard.jsx
-            ├── RoutinesBoard.jsx
+            ├── RoutinesBoard.jsx    # Inline title + days editing
             ├── DailySummary.jsx     # Login modal with today's tasks
             ├── Analytics.jsx
             ├── EmailsPanel.jsx      # Gmail results panel with add-to-task action
@@ -113,10 +127,11 @@ velocity-task-manager/
             ├── AgentInsights.jsx    # Animated advice panel triggered by AI agent
             ├── EmailDigest.jsx      # Scanning animation shown while fetching emails
             └── animations/
-                ├── StreakBurst.jsx  # Full-screen fire burst on streak click
-                ├── StardustOrb.jsx  # Orb that flies from chat to insights panel
-                ├── GlowHalo.jsx     # Lava-lamp glow wrapper for UI elements
-                └── LavaBackground.jsx  # Animated gradient backdrop (Hero section)
+                ├── TaskCrudMotion.jsx  # Enter/exit card animations (tasks, processes, routines)
+                ├── StreakBurst.jsx     # Full-screen fire burst on streak click
+                ├── StardustOrb.jsx    # Orb that flies from chat to insights panel
+                ├── GlowHalo.jsx       # Lava-lamp glow wrapper for UI elements
+                └── LavaBackground.jsx # Animated gradient backdrop (Hero section)
 ```
 
 ---
@@ -129,6 +144,7 @@ velocity-task-manager/
 cd backend
 python -m venv venv
 venv\Scripts\activate       # Windows
+# venv/bin/activate         # macOS / Linux
 pip install -r requirements.txt
 python app.py
 ```
@@ -150,9 +166,18 @@ The app runs at `http://localhost:5173` with the API at `http://localhost:5000`.
 Create a `.env` file in `/backend`:
 
 ```
-SECRET_KEY=your_secret_key
+FLASK_SECRET_KEY=your_flask_secret
 JWT_SECRET_KEY=your_jwt_secret
 GEMINI_API_KEY=your_gemini_api_key
 GOOGLE_CLIENT_ID=your_google_client_id
 GOOGLE_CLIENT_SECRET=your_google_client_secret
+```
+
+---
+
+## Running Tests
+
+```bash
+cd backend
+python -m pytest tests/ -v
 ```
