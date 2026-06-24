@@ -133,7 +133,7 @@ export default function Sidebar({ activeView, setActiveView, streak, onSendMessa
                   onChange={setChatInput}
                   onSubmit={handleChatSubmit}
                   thinking={isThinking}
-                  placeholder="Break down a goal…"
+                  placeholder="perform actions, fetch your emails or give advice — what would you like to do?"
                 />
               </GlowHalo>
             </div>

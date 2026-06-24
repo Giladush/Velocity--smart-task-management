@@ -219,7 +219,7 @@ function App() {
         const res = await toggleRoutine(token, actualRoutineId);
         if (res.ok) fetchData();
       } else {
-        const payload = { is_completed: task.is_completed, title: task.title };
+        const payload = { is_completed: task.is_completed, title: task.title, due_date: task.due_date ?? null };
         if (!task.process_id) payload.status = task.status;
         const res = await updateTask(token, task.id, payload);
         if (res.ok) fetchData();

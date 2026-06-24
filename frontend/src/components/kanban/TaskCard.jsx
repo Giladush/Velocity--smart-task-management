@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { crudAnimation } from '../animations/TaskCrudMotion';
 
 export default function TaskCard({
@@ -9,6 +9,16 @@ export default function TaskCard({
   highlightText, renderTagChips, searchQuery, isMatch,
   leaving, source,
 }) {
+  const [editingDate, setEditingDate] = useState(false);
+
+  const handleDateSave = (e) => {
+    const newDate = e.target.value || null;
+    if (newDate !== (task.due_date || null)) {
+      onUpdateTask({ ...task, due_date: newDate });
+    }
+    setEditingDate(false);
+  };
+
   return (
     <div
       ref={provided.innerRef}
@@ -88,14 +98,39 @@ export default function TaskCard({
               {task.urgency === 'high' ? '🔴 High' : '🟢 Low'}
             </span>
           )}
-          {task.due_date && (
-            <div className={`flex items-center gap-1 text-[11px] font-semibold w-fit px-2 py-0.5 rounded-md border ${
-              new Date(task.due_date) < new Date(new Date().setHours(0, 0, 0, 0)) && status !== 'Done'
-                ? 'text-red-600 bg-red-50 border-red-100'
-                : 'text-slate-500 bg-slate-50 border-slate-200'
-            }`}>
+          {editingDate ? (
+            <input
+              type="date"
+              autoFocus
+              defaultValue={task.due_date || ''}
+              className="text-[11px] font-semibold px-1.5 py-0.5 rounded-md border border-indigo-300 bg-indigo-50 text-indigo-700 w-28 cursor-pointer"
+              onChange={(e) => {
+                const newDate = e.target.value || null;
+                if (newDate !== (task.due_date || null)) onUpdateTask({ ...task, due_date: newDate });
+                setEditingDate(false);
+              }}
+              onBlur={() => setEditingDate(false)}
+              onKeyDown={(e) => { if (e.key === 'Escape') setEditingDate(false); }}
+            />
+          ) : task.due_date ? (
+            <div
+              onClick={() => !task.is_routine && setEditingDate(true)}
+              title={task.is_routine ? '' : 'לחץ לעריכת תאריך'}
+              className={`flex items-center gap-1 text-[11px] font-semibold w-fit px-2 py-0.5 rounded-md border transition-colors ${
+                !task.is_routine ? 'cursor-pointer hover:border-indigo-300 hover:bg-indigo-50/60' : ''
+              } ${
+                new Date(task.due_date) < new Date(new Date().setHours(0, 0, 0, 0)) && status !== 'Done'
+                  ? 'text-red-600 bg-red-50 border-red-100'
+                  : 'text-slate-500 bg-slate-50 border-slate-200'
+              }`}
+            >
               📅 {new Date(task.due_date).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' })}
             </div>
+          ) : !task.is_routine && (
+            <button
+              onClick={() => setEditingDate(true)}
+              className="text-[11px] text-slate-300 hover:text-indigo-400 transition-colors opacity-0 group-hover:opacity-100"
+            >+ date</button>
           )}
         </div>
       )}

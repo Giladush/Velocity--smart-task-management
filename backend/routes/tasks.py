@@ -95,6 +95,8 @@ def update_task(task_id):
 
     if 'title' in data:
         task.title = data['title']
+    if 'due_date' in data:
+        task.due_date = data['due_date']
 
     db.session.commit()
     return jsonify({

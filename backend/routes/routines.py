@@ -54,6 +54,28 @@ def delete_routine(routine_id):
         return jsonify({"error": str(e)}), 500
 
 
+@routines_bp.route('/api/routines/<int:routine_id>', methods=['PUT'])
+@jwt_required()
+def update_routine(routine_id):
+    try:
+        current_user_id = int(get_jwt_identity())
+        routine = Routine.query.get_or_404(routine_id)
+        if routine.user_id != current_user_id:
+            return jsonify({"error": "Forbidden"}), 403
+        data = request.json
+        if 'title' in data:
+            routine.title = data['title']
+        if 'frequency' in data:
+            routine.frequency = data['frequency']
+        if 'icon' in data:
+            routine.icon = data['icon']
+        db.session.commit()
+        return jsonify(routine.to_dict()), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+
 @routines_bp.route('/api/routines/<int:routine_id>/toggle', methods=['POST'])
 @jwt_required()
 def toggle_routine(routine_id):

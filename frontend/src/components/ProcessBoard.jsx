@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { CrudKeyframes, crudAnimation } from './animations/TaskCrudMotion';
 
 const URL_REGEX = /(https?:\/\/[^\s]+)/g;
 function StepTitle({ title }) {
@@ -26,6 +27,40 @@ export default function ProcessBoard({ processes, selectedProcessId, onUpdateTas
   const [newProcessTitle, setNewProcessTitle] = useState('');
   const [addingStepToId, setAddingStepToId] = useState(null);
   const [newStepTitle, setNewStepTitle] = useState('');
+
+  const [enteringIds, setEnteringIds] = useState(new Set());
+  const [leavingIds, setLeavingIds] = useState(new Set());
+  const [processGhosts, setProcessGhosts] = useState({});
+  const prevProcessIdsRef = useRef(new Set());
+
+  useEffect(() => {
+    const currentIds = new Set(processes.map(p => p.id));
+    if (prevProcessIdsRef.current.size > 0) {
+      const newIds = [...currentIds].filter(id => !prevProcessIdsRef.current.has(id));
+      if (newIds.length > 0) {
+        setEnteringIds(prev => new Set([...prev, ...newIds]));
+        setTimeout(() => {
+          setEnteringIds(prev => { const n = new Set(prev); newIds.forEach(id => n.delete(id)); return n; });
+        }, 2000);
+      }
+      prevProcessIdsRef.current.forEach(id => {
+        if (!currentIds.has(id)) {
+          setProcessGhosts(prev => { const n = { ...prev }; delete n[id]; return n; });
+          setLeavingIds(prev => { const n = new Set(prev); n.delete(id); return n; });
+        }
+      });
+    }
+    prevProcessIdsRef.current = currentIds;
+  }, [processes]);
+
+  const handleDeleteProcess = useCallback((e, processId) => {
+    e.stopPropagation();
+    const process = processes.find(p => p.id === processId);
+    if (!process) return;
+    setProcessGhosts(prev => ({ ...prev, [processId]: process }));
+    setLeavingIds(prev => new Set([...prev, processId]));
+    setTimeout(() => onDeleteProcess(processId), 520);
+  }, [processes, onDeleteProcess]);
 
   useEffect(() => {
     if (selectedProcessId && selectedProcessId !== scrolledToRef.current) {
@@ -59,6 +94,8 @@ export default function ProcessBoard({ processes, selectedProcessId, onUpdateTas
   };
 
   const sorted = [...processes].reverse();
+  const ghostsList = Object.values(processGhosts).filter(g => !processes.some(p => p.id === g.id));
+  const displaySorted = [...sorted, ...ghostsList];
 
   const handleAddStep = (e, processId) => {
     e.preventDefault();
@@ -71,6 +108,7 @@ export default function ProcessBoard({ processes, selectedProcessId, onUpdateTas
 
   return (
     <main className="flex-1 flex flex-col relative bg-slate-50 overflow-hidden">
+      <CrudKeyframes />
       <header className="h-[88px] border-b border-slate-200 bg-white flex items-center justify-between px-8 shrink-0 z-10 shadow-sm">
         <h2 className="text-2xl font-extrabold text-slate-800 shrink-0">Processes</h2>
         <form onSubmit={handleCreateProcess} className="flex gap-3 ml-8 flex-1 max-w-xl">
@@ -134,14 +172,14 @@ export default function ProcessBoard({ processes, selectedProcessId, onUpdateTas
         </aside>
 
         {/* Cards area */}
-        <div className="flex-1 p-6 overflow-y-auto space-y-5">
-          {sorted.length === 0 ? (
+        <div className="flex-1 p-6 overflow-y-auto overflow-x-hidden space-y-5">
+          {sorted.length === 0 && ghostsList.length === 0 ? (
             <div className="text-center py-20 text-slate-400">
               <span className="text-5xl block mb-4">🚀</span>
               <p>No active processes. Create one above or ask the AI agent!</p>
             </div>
           ) : (
-            sorted.map(p => {
+            displaySorted.map(p => {
               const totalTasks = p.tasks?.length || 0;
               const completedTasks = p.tasks?.filter(t => t.is_completed).length || 0;
               const progressPercentage = totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
@@ -153,6 +191,10 @@ export default function ProcessBoard({ processes, selectedProcessId, onUpdateTas
                   key={p.id}
                   ref={el => processRefs.current[p.id] = el}
                   onClick={() => { setExpandedId(isExpanded ? null : p.id); }}
+                  style={{
+                    animation: crudAnimation({ kind: 'card', leaving: leavingIds.has(p.id), source: enteringIds.has(p.id) ? 'form' : undefined }),
+                    overflow: 'hidden',
+                  }}
                   className={`group bg-white p-6 rounded-3xl border shadow-sm transition-all duration-300 cursor-pointer hover:shadow-md ${
                     isExpanded
                       ? 'border-indigo-400 ring-4 ring-indigo-50'
@@ -161,12 +203,12 @@ export default function ProcessBoard({ processes, selectedProcessId, onUpdateTas
                       : 'border-slate-200'
                   }`}
                 >
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h3 className="text-lg font-bold text-slate-800">{p.title}</h3>
-                      <p className="text-sm text-slate-500 mt-1">{p.description}</p>
+                  <div className="flex justify-between items-start gap-3 mb-4">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-lg font-bold text-slate-800 break-words">{p.title}</h3>
+                      <p className="text-sm text-slate-500 mt-1 break-words">{p.description}</p>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 shrink-0">
                       <div className="flex flex-col items-end gap-1">
                         <span className="bg-indigo-100 text-indigo-700 text-xs font-bold px-3 py-1 rounded-full">
                           {totalTasks} Steps
@@ -176,11 +218,13 @@ export default function ProcessBoard({ processes, selectedProcessId, onUpdateTas
                         </span>
                       </div>
                       <button
-                        onClick={(e) => { e.stopPropagation(); onDeleteProcess(p.id); }}
-                        className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 transition-all text-lg leading-none"
+                        onClick={(e) => handleDeleteProcess(e, p.id)}
+                        className="opacity-0 group-hover:opacity-100 p-2 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all"
                         title="Delete process"
                       >
-                        ✕
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
                       </button>
                     </div>
                   </div>

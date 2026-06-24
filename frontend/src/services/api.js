@@ -62,6 +62,13 @@ export const createRoutine = (token, data) =>
     body: JSON.stringify(data)
   });
 
+export const updateRoutine = (token, routineId, data) =>
+  fetch(`${BASE}/api/routines/${routineId}`, {
+    method: 'PUT',
+    headers: jsonHeaders(token),
+    body: JSON.stringify(data)
+  });
+
 export const createProcess = (token, title) =>
   fetch(`${BASE}/api/processes`, {
     method: 'POST',

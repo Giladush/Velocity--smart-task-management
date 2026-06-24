@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useFlip, crudAnimation } from '../animations/TaskCrudMotion';
 
 export default function ListView({
@@ -41,6 +41,14 @@ function ListRows({
   addTaskToCalendar, highlightText, renderTagChips, isFilterMatch
 }) {
   const { register } = useFlip();
+  const [editingDateId, setEditingDateId] = useState(null);
+
+  const handleDateChange = (task, e) => {
+    const newDate = e.target.value || null;
+    if (newDate !== (task.due_date || null)) onUpdateTask({ ...task, due_date: newDate });
+    setEditingDateId(null);
+  };
+
   return (
     <>
         {listTasks.map((task, i) => {
@@ -138,12 +146,31 @@ function ListRows({
 
               {/* Due date */}
               <div className="w-[72px] shrink-0 flex justify-center">
-                {task.due_date ? (
-                  <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded-md border ${
-                    isOverdue ? 'text-red-600 bg-red-50 border-red-100' : 'text-slate-500 bg-slate-50 border-slate-200'
-                  }`}>
+                {editingDateId === task.id ? (
+                  <input
+                    type="date"
+                    autoFocus
+                    defaultValue={task.due_date || ''}
+                    className="text-[11px] font-semibold px-1 py-0.5 rounded-md border border-indigo-300 bg-indigo-50 text-indigo-700 w-full cursor-pointer"
+                    onChange={(e) => handleDateChange(task, e)}
+                    onBlur={() => setEditingDateId(null)}
+                    onKeyDown={(e) => { if (e.key === 'Escape') setEditingDateId(null); }}
+                  />
+                ) : task.due_date ? (
+                  <span
+                    onClick={() => !task.is_routine && setEditingDateId(task.id)}
+                    title={task.is_routine ? '' : 'לחץ לעריכת תאריך'}
+                    className={`text-[11px] font-semibold px-1.5 py-0.5 rounded-md border transition-colors ${
+                      !task.is_routine ? 'cursor-pointer hover:border-indigo-300 hover:bg-indigo-50/60' : ''
+                    } ${isOverdue ? 'text-red-600 bg-red-50 border-red-100' : 'text-slate-500 bg-slate-50 border-slate-200'}`}
+                  >
                     {new Date(task.due_date).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' })}
                   </span>
+                ) : !task.is_routine ? (
+                  <button
+                    onClick={() => setEditingDateId(task.id)}
+                    className="text-slate-300 hover:text-indigo-400 text-sm transition-colors opacity-0 group-hover:opacity-100"
+                  >+</button>
                 ) : (
                   <span className="text-slate-300 text-sm">—</span>
                 )}

@@ -6,7 +6,7 @@ export default function AgentChatBox({
   onSubmit,
   thinking = false,
   thinkingLabel = 'Thinking',
-  placeholder = 'Break down a goal…',
+  placeholder = 'I can create processes, perform actions, fetch your emails or give advice — what would you like to do?',
   accent = ['#5b8cff', '#8a6bff'],
 }) {
   const ref = useRef(null);
@@ -45,7 +45,7 @@ export default function AgentChatBox({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           disabled={thinking}
-          rows={2}
+          rows={3}
           onFocus={() => setFocus(true)}
           onBlur={() => setFocus(false)}
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); } }}

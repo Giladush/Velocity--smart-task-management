@@ -43,9 +43,8 @@ class Process(db.Model):
 
 class Task(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(100), nullable=False)
-    priority = db.Column(db.String(50), default="Medium")
-    due_date = db.Column(db.String(50), nullable=True)
+    title = db.Column(db.String(500), nullable=False)
+    due_date = db.Column(db.Date, nullable=True)
     is_completed = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     urgency = db.Column(db.String(20), default='normal')
@@ -59,9 +58,13 @@ class Task(db.Model):
 
 class CompletionLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     task_id = db.Column(db.Integer, nullable=False)
     completed_date = db.Column(db.Date, default=date.today)
+
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'task_id', 'completed_date', name='uq_completion_log'),
+    )
 
 
 # routine model

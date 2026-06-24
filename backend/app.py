@@ -24,7 +24,7 @@ CORS(app, supports_credentials=True, origins=[r'http://localhost:5173', r'http:/
 app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(os.path.dirname(__file__), 'velocity.db')}"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
-migrate = Migrate(app, db)
+migrate = Migrate(app, db, render_as_batch=True)
 
 api_key = os.getenv("GEMINI_API_KEY")
 if api_key:
