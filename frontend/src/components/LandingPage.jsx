@@ -55,7 +55,7 @@ const SECTIONS = [
     iconBg: 'bg-sky-50',
     iconColor: 'text-sky-500',
     title: 'Stride AI — Your Natural-Language Assistant',
-    body: 'What truly makes Velocity smart and unique is our built-in AI agent. Instead of navigating menus and entering data manually, you can simply "talk" to the system in natural language. Give it a single sentence, and it knows how to create tasks, build entire multi-step processes, filter your board, or clear out old items. Beyond that, our smart assistant can review all your open tasks to provide warm, personalized advice and help you prioritize your workload effectively.',
+    body: 'What truly makes Velocity smart and unique is our built-in AI agent. Instead of navigating menus and entering data manually, you can simply "talk" to the system in natural language. Give it a single sentence, and it knows how to create tasks, build entire multi-step processes, filter your board, or clear out old items. It can even pull your Gmail inbox on demand, surface only the urgent messages, and convert any email into a task with a single click. Beyond that, our smart assistant can review all your open tasks to provide warm, personalized advice and help you prioritize your workload effectively.',
     accent: 'bg-sky-500',
   },
   {

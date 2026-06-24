@@ -6,6 +6,10 @@ import os
 from google import genai as _genai_sdk
 from google.genai import types as genai_types
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from const import (
+    build_chat_prompt, build_fallback_steps_prompt, build_search_query_prompt,
+    build_steps_with_web_prompt, build_steps_without_web_prompt, build_email_filter_prompt,
+)
 
 ai_bp = Blueprint('ai', __name__)
 
@@ -15,7 +19,10 @@ _cached_model_name = None
 def _get_genai_client():
     global _genai_client
     if _genai_client is None:
-        _genai_client = _genai_sdk.Client(api_key=os.getenv('GEMINI_API_KEY'))
+        api_key = os.getenv('GEMINI_API_KEY')
+        if not api_key:
+            raise RuntimeError("GEMINI_API_KEY is not set in environment variables.")
+        _genai_client = _genai_sdk.Client(api_key=api_key)
     return _genai_client
 
 def _get_model_name():
@@ -62,48 +69,7 @@ def chat_with_stride():
         existing_routines = [{"id": r.id, "title": r.title}
                               for r in Routine.query.filter_by(user_id=current_user_id).all()]
 
-        prompt = f"""
-        You are Stride AI — a warm, sharp, and proactive personal assistant who genuinely cares about helping the user move forward.
-        Your tone is friendly, direct, and encouraging — like a smart friend who knows productivity well, not a cold robot.
-        Always respond in fluent, natural Hebrew. Never sound robotic or overly formal.
-        Today's date is: {today_str}.
-        Current open tasks: {json.dumps(open_tasks, ensure_ascii=False)}
-        Existing processes: {json.dumps(existing_processes, ensure_ascii=False)}
-        Existing routines: {json.dumps(existing_routines, ensure_ascii=False)}
-
-        CRITICAL RULES:
-        1. NO TASK IDs: Never mention task IDs to the user. Use task titles only.
-        2. PRIORITIZATION: Bureaucratic, financial, medical, or administrative tasks always take top priority (e.g., National Insurance, banking, government forms, medical appointments). Leisure or hobby tasks are always lower priority.
-        3. ADVICE QUALITY: When giving advice, always consider ALL open tasks — not just one. Give a full picture: what to tackle first and why, what can wait, and any time-sensitive items. Be warm and specific, not generic.
-        4. TONE: Be warm and human. Use phrases like "אני ממליץ", "שים לב ש...", "הייתי מתחיל עם..." — make the user feel supported, not just informed.
-
-        The user says: "{user_message}"
-
-        Analyze the request and decide the BEST intent.
-        CRITICAL RULE: If the user directly commands you to create, delete, or modify something, DO IT IMMEDIATELY using the correct intent. DO NOT ask for confirmation, even if a similar item already exists.
-        You must respond ONLY with a valid JSON object in this exact format:
-        {{
-          "reply": "Your conversational, warm response in HEBREW — 1-2 sentences max for non-advice intents.",
-          "intent": "ONE_OF: create_process, create_task, create_routine, delete_process, delete_task, delete_tasks, delete_routine, filter, complete_task, complete_tasks, advice, navigate, fetch_emails, general_chat",
-          "payload": {{ ... see instructions below ... }}
-        }}
-
-        PAYLOAD INSTRUCTIONS:
-        - if intent='create_process': (CRITICAL: Use this for multi-step goals, projects, "תוכנית", "תהליך") payload = {{"process_title": "...", "process_description": "..."}}
-        - if intent='create_task': payload = {{"title": "...", "due_date": "YYYY-MM-DD" or null}}
-        - if intent='create_routine': payload = {{"title": "...", "frequency": ["Sun", "Wed"]}} (CRITICAL: If specific days are mentioned, extract them to 'frequency' array using ONLY abbreviations: 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'. If no days mentioned, omit the 'frequency' key.)
-        - if intent='delete_process': payload = {{"process_id": 123}} (find ID from Existing processes)
-        - if intent='delete_task': payload = {{"task_id": 123}} (find ID from open tasks)
-        - if intent='delete_tasks': payload = {{"target_date": "YYYY-MM-DD" or "today" or "all"}}
-        - if intent='delete_routine': payload = {{"routine_id": 123}} (find ID from Existing routines)
-        - if intent='filter': payload = {{"filter_value": "next_X_days" or "custom" or "today", "days_count": int, "custom_date": "YYYY-MM-DD"}}
-        - if intent='complete_task': (single task by name) payload = {{"task_id": 123}} (find ID from open tasks by matching the task name the user mentioned)
-        - if intent='complete_tasks': (batch) payload = {{"target_date": "YYYY-MM-DD" or "today" or "all"}} OR {{"target_urgency": "high" or "low" or "normal"}} — use target_urgency when user says "סמן את כל הדחופות" or similar urgency-based filter
-        - if intent='advice': payload = {{"advice_text": "Warm, comprehensive Markdown advice covering ALL tasks — priorities, reasoning, and encouragement. CRITICAL RULES: (1) The open_tasks list contains ONLY standalone tasks — mention them by name freely. (2) For processes: mention ONLY the process title and how many steps remain (e.g. 'נשארו לך 3 שלבים בתהליך X'). NEVER mention individual step names from any process, under any circumstances."}}
-        - if intent='navigate': payload = {{"view": "processes" or "tasks" or "routines", "process_id": int}}
-        - if intent='fetch_emails': (Use when user asks to fetch/search emails by topic, e.g. "משוך לי מיילים דחופים", "מיילים שקשורים לעבודה", "מיילים על הטיול") payload = {{"query": "the topic or category in Hebrew", "keywords": ["english keyword 1", "english keyword 2", "hebrew keyword"]}} — extract 2-4 specific search keywords (in both Hebrew and English if applicable) that would appear in matching email subjects or bodies.
-        - if intent='general_chat': (also use this when the user asks which tasks they have for a specific date or day, e.g. "מה המשימות שלי ליום רביעי?" or "מה יש לי ב-20.6?". In that case, resolve the requested date using today's date, filter open_tasks by due_date, and list the matching tasks in the reply. If no tasks match, say so warmly.) payload = {{}}
-        """
+        prompt = build_chat_prompt(today_str, open_tasks, existing_processes, existing_routines, user_message)
 
         chosen_model_name = _get_model_name()
 
@@ -134,7 +100,7 @@ def chat_with_stride():
                 try:
                     fallback_response = _get_genai_client().models.generate_content(
                         model=chosen_model_name,
-                        contents=f'Create 5 specific actionable steps in Hebrew for: "{topic}". Return ONLY a JSON array of strings.',
+                        contents=build_fallback_steps_prompt(topic),
                         config=genai_types.GenerateContentConfig(response_mime_type="application/json")
                     )
                     fallback_steps = json.loads(fallback_response.text)
@@ -195,8 +161,11 @@ def chat_with_stride():
             if target_date == "all":
                 Task.query.filter_by(is_completed=False, user_id=current_user_id).delete()
             else:
-                actual_date = today_str if target_date == "today" else target_date
-                Task.query.filter_by(due_date=actual_date, is_completed=False, user_id=current_user_id).delete()
+                try:
+                    actual_date = date.fromisoformat(today_str if target_date == "today" else target_date)
+                    Task.query.filter_by(due_date=actual_date, is_completed=False, user_id=current_user_id).delete()
+                except (ValueError, TypeError):
+                    pass
             db.session.commit()
             action = {"type": "REFRESH_DATA"}
 
@@ -225,18 +194,20 @@ def chat_with_stride():
             target_date = payload.get("target_date")
             target_urgency = payload.get("target_urgency")
             today_date = date.today()
-            if target_urgency:
+            if not target_date and not target_urgency:
+                tasks_to_complete = []
+            elif target_urgency:
                 tasks_to_complete = Task.query.filter_by(
-                    is_completed=False, urgency=target_urgency, user_id=current_user_id
+                    is_completed=False, urgency=target_urgency, user_id=current_user_id, process_id=None
                 ).all()
             elif target_date == "all":
                 tasks_to_complete = Task.query.filter_by(is_completed=False, user_id=current_user_id).all()
             else:
                 try:
                     actual_date = date.fromisoformat(today_str if target_date == "today" else target_date)
+                    tasks_to_complete = Task.query.filter_by(due_date=actual_date, is_completed=False, user_id=current_user_id).all()
                 except (ValueError, TypeError):
-                    actual_date = today_date
-                tasks_to_complete = Task.query.filter_by(due_date=actual_date, is_completed=False, user_id=current_user_id).all()
+                    tasks_to_complete = []
             for task in tasks_to_complete:
                 task.is_completed = True
                 task.status = "Done"
@@ -274,13 +245,7 @@ def _get_search_query(topic, model_name):
     try:
         r = _get_genai_client().models.generate_content(
             model=model_name,
-            contents=f"""Given this task topic (may be in Hebrew): "{topic}"
-Generate the single best web search query to find detailed, specific how-to content about it.
-Rules:
-- Use English unless the topic is specifically about Israeli/Hebrew-language content (e.g. Israeli dishes, Hebrew songs, local services)
-- Be specific: include the exact name, artist, dish name, etc.
-- Aim for a query that would return tutorials, guides, tabs, recipes, or step-by-step resources
-- Return ONLY the search query string, nothing else.""",
+            contents=build_search_query_prompt(topic),
             config=genai_types.GenerateContentConfig(response_mime_type="text/plain")
         )
         query = r.text.strip().strip('"')
@@ -381,36 +346,9 @@ def _research_and_build_steps(topic, description, model_name):
 
     try:
         if web_context:
-            steps_prompt = f"""
-            The user wants a step-by-step process for: "{topic}"
-            Context: {description}
-
-            Here is REAL content fetched from the web about this topic:
-            ---
-            {web_context[:6000]}
-            ---
-
-            Using the specific details in that content (exact names, techniques, ingredients, tabs, BPM, tools, etc.),
-            create 4-6 actionable steps in Hebrew for "{topic}".
-
-            Rules:
-            - Reference SPECIFIC details from the content above (not generic advice)
-            - Each step must be immediately actionable
-            - Do NOT include a step about "finding" or "searching" — the source URLs are added separately
-            - Steps in Hebrew
-            - Return ONLY a JSON array of strings: ["step 1", "step 2", ...]
-            """
+            steps_prompt = build_steps_with_web_prompt(topic, description, web_context)
         else:
-            steps_prompt = f"""
-            Create 5-7 specific, actionable steps in Hebrew for: "{topic}"
-            Context: {description}
-
-            Rules:
-            - Be as specific as possible — name exact techniques, platforms, ingredient amounts, tools, etc.
-            - Each step must be immediately actionable
-            - Steps in Hebrew
-            - Return ONLY a JSON array of strings: ["step 1", "step 2", ...]
-            """
+            steps_prompt = build_steps_without_web_prompt(topic, description)
 
         steps_response = _get_genai_client().models.generate_content(
             model=model_name,
@@ -500,22 +438,7 @@ def _handle_fetch_emails(payload, request_data, model_name):
                 'snippet': msg.get('snippet', '')
             })
 
-        email_prompt = f"""
-        The user is looking for emails about: "{topic}"
-        Keywords they care about: {json.dumps(all_terms, ensure_ascii=False)}
-
-        Below is a list of emails fetched from Gmail.
-        Your job:
-        1. FILTER: Keep ONLY emails that are genuinely relevant to the topic "{topic}". Discard unrelated emails.
-        2. SUMMARIZE: For each kept email, write one short sentence in Hebrew describing what it says or requires.
-
-        Return a JSON array containing ONLY the relevant emails, with fields: id, subject, sender, summary.
-        If none are relevant, return an empty array [].
-        CRITICAL: Return valid JSON only. Escape any double-quotes inside string values.
-
-        Emails:
-        {json.dumps(emails_raw, ensure_ascii=False)}
-        """
+        email_prompt = build_email_filter_prompt(topic, all_terms, emails_raw)
 
         email_response = _get_genai_client().models.generate_content(
             model=model_name,

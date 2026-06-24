@@ -143,6 +143,8 @@ function App() {
       if (data.action) {
         const { type, payload } = data.action;
 
+        if (data.reply) setAiReply(data.reply);
+
         if (type === 'SET_ADVICE') {
           setAiAdvice(payload.advice_text);
           setAdviceRunId(n => n + 1);
@@ -167,8 +169,6 @@ function App() {
           }
           return;
         }
-
-        if (data.reply) setAiReply(data.reply);
 
         switch (type) {
           case 'SET_FILTER':

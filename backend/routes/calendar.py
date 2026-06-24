@@ -7,8 +7,10 @@ from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from google import genai as _genai_sdk
 from google.genai import types as genai_types
+from const import build_urgent_email_prompt
 
-os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
+if os.getenv('FLASK_ENV') == 'development':
+    os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
 calendar_bp = Blueprint('calendar', __name__)
 
@@ -174,16 +176,7 @@ def get_urgent_emails():
                 'snippet': msg.get('snippet', '')
             })
 
-        prompt = f"""
-        You are an email urgency classifier. Review the following emails and return ONLY those that are genuinely urgent.
-        Urgent means: requires action soon, involves a deadline, financial/legal/medical/administrative matter, or a direct reply is clearly needed.
-        Marketing emails, newsletters, and notifications are NOT urgent.
-        Return a JSON array of at most 5 urgent emails, preserving these fields exactly: id, subject, sender, date, snippet.
-        If none are urgent, return an empty array [].
-
-        Emails:
-        {json.dumps(emails, ensure_ascii=False)}
-        """
+        prompt = build_urgent_email_prompt(emails)
 
         response = _get_genai_client().models.generate_content(
             model=_get_model_name(),
