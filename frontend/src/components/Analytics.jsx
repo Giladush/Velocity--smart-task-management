@@ -63,7 +63,7 @@ export default function Analytics({ token }) {
                 <circle cx="60" cy="60" r={radius} fill="transparent" stroke="#f1f5f9" strokeWidth="12" />
                 {todoPct > 0 && (
                   <circle
-                    cx="60" cy="60" r={radius} fill="transparent" stroke="#94a3b8" strokeWidth="12"
+                    cx="60" cy="60" r={radius} fill="transparent" stroke="#4f46e5" strokeWidth="12"
                     strokeDasharray={`${todoDash} ${circumference}`}
                     strokeDashoffset={0}
                   />
@@ -90,7 +90,7 @@ export default function Analytics({ token }) {
 
             <div className="flex flex-col gap-1.5 text-xs font-semibold text-slate-500 w-full px-2">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-slate-400 inline-block" />To Do</div>
+                <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-indigo-600 inline-block" />To Do</div>
                 <span className="text-slate-700">{statuses.todo}</span>
               </div>
               <div className="flex items-center justify-between">
@@ -116,7 +116,7 @@ export default function Analytics({ token }) {
                     cursor={{fill: '#f8fafc'}}
                     contentStyle={{borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', fontWeight: 'bold', color: '#1e293b'}}
                   />
-                  <Bar dataKey="completed" fill="#6366f1" radius={[6, 6, 0, 0]} name="משימות שהושלמו" />
+                  <Bar dataKey="completed" fill="#22c55e" radius={[6, 6, 0, 0]} name="משימות שהושלמו" />
                 </BarChart>
               </ResponsiveContainer>
             </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { crudAnimation } from '../animations/TaskCrudMotion';
 
 export default function TaskCard({
@@ -10,6 +10,14 @@ export default function TaskCard({
   leaving, source,
 }) {
   const [editingDate, setEditingDate] = useState(false);
+  const editTextareaRef = useRef(null);
+  useEffect(() => {
+    if (editingTaskId === task.id && editTextareaRef.current) {
+      const el = editTextareaRef.current;
+      el.style.height = 'auto';
+      el.style.height = el.scrollHeight + 'px';
+    }
+  }, [editingTaskId, task.id]);
 
   const handleDateSave = (e) => {
     const newDate = e.target.value || null;
@@ -35,14 +43,14 @@ export default function TaskCard({
           ? 'shadow-lg ring-2 ring-indigo-400 rotate-2 cursor-grabbing'
           : 'cursor-grab hover:border-indigo-200 hover:shadow-md'
       } ${
-        status === 'Done' ? 'border-l-4 border-l-emerald-400 opacity-80'
-        : status === 'In Progress' ? 'border-l-4 border-l-amber-400'
-        : 'border-slate-100'
+        status === 'Done' ? 'border-slate-100 border-l-4 border-l-emerald-400 opacity-80'
+        : status === 'In Progress' ? 'border-slate-100 border-l-4 border-l-amber-400'
+        : 'border-slate-100 border-l-4 border-l-indigo-600'
       } ${isMatch && !snapshot.isDragging ? 'task-glow' : ''}`}
     >
       {task.created_at && (
         <div className="absolute top-0 -translate-y-1/2 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[11px] px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-md">
-          נוצר ב: {new Date(task.created_at).toLocaleString('he-IL', { dateStyle: 'short', timeStyle: 'short' })}
+          Created: {new Date(task.created_at).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}
         </div>
       )}
 
@@ -54,16 +62,22 @@ export default function TaskCard({
 
       {editingTaskId === task.id ? (
         <div className="mb-2">
-          <input
+          <textarea
             autoFocus
+            ref={editTextareaRef}
+            rows={1}
             value={editTitle}
-            onChange={(e) => setEditTitle(e.target.value)}
+            onChange={(e) => {
+              setEditTitle(e.target.value);
+              e.target.style.height = 'auto';
+              e.target.style.height = e.target.scrollHeight + 'px';
+            }}
             onBlur={() => handleEditSave(task.id)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') handleEditSave(task.id);
+              if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleEditSave(task.id); }
               if (e.key === 'Escape') setEditingTaskId(null);
             }}
-            className="w-full text-sm font-semibold border-b-2 border-indigo-500 outline-none bg-indigo-50/50 px-1 py-1 rounded-sm text-slate-800"
+            className="w-full text-sm font-semibold border-b-2 border-indigo-500 outline-none bg-indigo-50/50 px-1 py-1 rounded-sm text-slate-800 resize-none overflow-hidden"
             dir="auto"
           />
           <span className="text-[10px] text-slate-400 mt-1 block">Enter לשמירה, Esc לביטול</span>

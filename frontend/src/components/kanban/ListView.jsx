@@ -82,7 +82,7 @@ function ListRows({
               <div className={`w-1.5 h-9 rounded-full shrink-0 ${
                 task.status === 'Done' ? 'bg-emerald-400'
                 : task.status === 'In Progress' ? 'bg-amber-400'
-                : 'bg-slate-300'
+                : 'bg-indigo-600'
               }`} />
 
               {/* Title + tags */}

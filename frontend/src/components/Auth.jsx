@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { loginUser, registerUser } from '../services/api';
+import LavaBackground from './animations/LavaBackground';
 
 export default function Auth({ setToken, setUsername, initialMode = 'login' }) {
   const [isLogin, setIsLogin] = useState(initialMode !== 'signup');
@@ -50,8 +51,9 @@ export default function Auth({ setToken, setUsername, initialMode = 'login' }) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-      <div className="bg-white max-w-md w-full rounded-3xl shadow-xl p-8 border border-slate-100">
+    <div className="min-h-screen relative flex items-center justify-center p-4">
+      <LavaBackground palette="cool09" blur={32} speed={1.5} />
+      <div className="relative z-10 bg-white max-w-md w-full rounded-3xl shadow-xl p-8 border border-slate-100">
         <div className="text-center mb-8">
           <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-indigo-200">
             <span className="text-white text-3xl">🚀</span>

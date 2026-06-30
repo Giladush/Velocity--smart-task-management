@@ -9,7 +9,7 @@ export default function TagPicker({
   return (
     <div className="relative" ref={tagAreaRef}>
       <div
-        className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl cursor-text min-w-[130px] max-w-[200px] h-[42px] flex-wrap overflow-hidden hover:border-indigo-300 transition-colors"
+        className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl cursor-text min-w-[130px] max-w-[200px] min-h-[42px] flex-wrap hover:border-indigo-300 transition-colors"
         onClick={() => newTaskTags.length < 3 && setShowTagDropdown(true)}
       >
         {newTaskTags.map(tag => (
@@ -30,15 +30,15 @@ export default function TagPicker({
             onChange={(e) => setTagInput(e.target.value)}
             onFocus={() => setShowTagDropdown(true)}
             onKeyDown={handleTagKeyDown}
-            className="flex-1 min-w-[40px] bg-transparent outline-none text-sm text-slate-600 placeholder-slate-400 w-full"
+            className="flex-1 min-w-[40px] bg-transparent outline-none text-sm text-slate-600 placeholder-slate-400"
           />
         )}
       </div>
 
       {showTagDropdown && (
         <div
-          className="bg-white border border-slate-200 rounded-xl shadow-lg p-3"
-          style={getDropdownStyle()}
+          className="absolute left-0 bg-white border border-slate-200 rounded-xl shadow-lg p-3 z-30"
+          style={{ top: 'calc(100% + 4px)', minWidth: '200px' }}
           onMouseDown={(e) => e.preventDefault()}
         >
           {filteredSuggestions.length > 0 && (

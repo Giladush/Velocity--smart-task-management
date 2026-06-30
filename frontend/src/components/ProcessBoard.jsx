@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
 import { CrudKeyframes, crudAnimation } from './animations/TaskCrudMotion';
 
 const URL_REGEX = /(https?:\/\/[^\s]+)/g;
@@ -27,6 +27,25 @@ export default function ProcessBoard({ processes, selectedProcessId, onUpdateTas
   const [newProcessTitle, setNewProcessTitle] = useState('');
   const [addingStepToId, setAddingStepToId] = useState(null);
   const [newStepTitle, setNewStepTitle] = useState('');
+  const [editingStepId, setEditingStepId] = useState(null);
+  const [editStepTitle, setEditStepTitle] = useState('');
+
+  const stepTextareaRef = useRef(null);
+  useLayoutEffect(() => {
+    if (editingStepId && stepTextareaRef.current) {
+      const el = stepTextareaRef.current;
+      el.style.height = 'auto';
+      el.style.height = el.scrollHeight + 'px';
+    }
+  }, [editingStepId]);
+
+  const handleStepEditSave = (task) => {
+    if (editStepTitle.trim() && editStepTitle.trim() !== task.title) {
+      onUpdateTask({ ...task, title: editStepTitle.trim() });
+    }
+    setEditingStepId(null);
+    setEditStepTitle('');
+  };
 
   const [enteringIds, setEnteringIds] = useState(new Set());
   const [leavingIds, setLeavingIds] = useState(new Set());
@@ -245,28 +264,57 @@ export default function ProcessBoard({ processes, selectedProcessId, onUpdateTas
 
                         {p.tasks?.map((task, index) => {
                           const isCompleted = task.is_completed;
+                          const isEditingStep = editingStepId === task.id;
                           return (
                             <div
                               key={task.id}
-                              className="relative flex flex-col items-center mb-8 cursor-pointer group/task"
-                              onClick={() => onUpdateTask({ ...task, is_completed: !isCompleted })}
+                              className="relative flex flex-col items-center mb-8 group/task w-full"
                             >
-                              <div className={`w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold shadow-sm border-b-4 active:border-b-0 active:translate-y-1 transition-all ${
-                                isCompleted
-                                  ? 'bg-emerald-400 border-emerald-500 text-white scale-110'
-                                  : 'bg-white border-slate-200 text-slate-400 group-hover/task:bg-slate-50'
-                              }`}>
+                              <div
+                                onClick={() => onUpdateTask({ ...task, is_completed: !isCompleted })}
+                                className={`w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold shadow-sm border-b-4 active:border-b-0 active:translate-y-1 transition-all cursor-pointer ${
+                                  isCompleted
+                                    ? 'bg-emerald-400 border-emerald-500 text-white scale-110'
+                                    : 'bg-white border-slate-200 text-slate-400 hover:bg-slate-50'
+                                }`}
+                              >
                                 {isCompleted ? '✓' : index + 1}
                               </div>
-                              <div className="mt-3 flex items-center gap-1">
-                                <span className={`text-sm font-bold px-4 py-1.5 rounded-full shadow-sm border ${
-                                  isCompleted ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-slate-600 bg-white border-slate-200'
-                                }`}>
-                                  <StepTitle title={task.title} />
-                                </span>
+                              <div className="mt-3 flex items-center gap-1 w-full px-2 justify-center">
+                                {isEditingStep ? (
+                                  <textarea
+                                    autoFocus
+                                    ref={stepTextareaRef}
+                                    rows={1}
+                                    value={editStepTitle}
+                                    onChange={(e) => {
+                                      setEditStepTitle(e.target.value);
+                                      e.target.style.height = 'auto';
+                                      e.target.style.height = e.target.scrollHeight + 'px';
+                                    }}
+                                    onBlur={() => handleStepEditSave(task)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleStepEditSave(task); }
+                                      if (e.key === 'Escape') { setEditingStepId(null); setEditStepTitle(''); }
+                                    }}
+                                    className={`flex-1 min-w-0 text-sm font-bold px-4 py-1.5 rounded-2xl shadow-sm border-2 border-indigo-400 outline-none resize-none overflow-hidden text-center ${
+                                      isCompleted ? 'text-emerald-700 bg-emerald-50' : 'text-slate-600 bg-white'
+                                    }`}
+                                    style={{ minHeight: '36px' }}
+                                  />
+                                ) : (
+                                  <span
+                                    onClick={() => { setEditingStepId(task.id); setEditStepTitle(task.title); }}
+                                    className={`text-sm font-bold px-4 py-1.5 rounded-full shadow-sm border cursor-text hover:border-indigo-300 transition-colors text-center ${
+                                      isCompleted ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : 'text-slate-600 bg-white border-slate-200'
+                                    }`}
+                                  >
+                                    <StepTitle title={task.title} />
+                                  </span>
+                                )}
                                 <button
                                   onClick={(e) => { e.stopPropagation(); onDeleteTask(task.id); }}
-                                  className="opacity-0 group-hover/task:opacity-100 text-slate-300 hover:text-red-500 transition-all text-xs leading-none"
+                                  className="opacity-0 group-hover/task:opacity-100 text-slate-300 hover:text-red-500 transition-all text-xs leading-none shrink-0"
                                   title="Delete step"
                                 >
                                   ✕
@@ -279,17 +327,25 @@ export default function ProcessBoard({ processes, selectedProcessId, onUpdateTas
                         {addingStepToId === p.id ? (
                           <form
                             onSubmit={(e) => handleAddStep(e, p.id)}
-                            className="flex flex-col items-center mb-4 gap-2"
+                            className="flex flex-col items-center mb-4 gap-2 w-full px-4"
                             onClick={(e) => e.stopPropagation()}
                           >
-                            <input
+                            <textarea
                               autoFocus
-                              type="text"
+                              rows={1}
                               value={newStepTitle}
-                              onChange={(e) => setNewStepTitle(e.target.value)}
+                              onChange={(e) => {
+                                setNewStepTitle(e.target.value);
+                                e.target.style.height = 'auto';
+                                e.target.style.height = Math.min(e.target.scrollHeight, 76) + 'px';
+                              }}
                               placeholder="Step name..."
-                              className="px-4 py-2 border border-indigo-300 rounded-xl text-sm text-slate-700 outline-none focus:ring-2 focus:ring-indigo-400 bg-white w-48 text-center"
-                              onKeyDown={(e) => { if (e.key === 'Escape') { setAddingStepToId(null); setNewStepTitle(''); } }}
+                              className="px-4 py-2 border border-indigo-300 rounded-xl text-sm text-slate-700 outline-none focus:ring-2 focus:ring-indigo-400 bg-white w-full text-center resize-none overflow-y-auto"
+                              style={{ minHeight: '38px', maxHeight: '76px' }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAddStep(e, p.id); }
+                                if (e.key === 'Escape') { setAddingStepToId(null); setNewStepTitle(''); }
+                              }}
                             />
                             <div className="flex gap-2">
                               <button type="submit" className="px-3 py-1 bg-indigo-600 text-white text-xs font-bold rounded-lg hover:bg-indigo-700">Add</button>

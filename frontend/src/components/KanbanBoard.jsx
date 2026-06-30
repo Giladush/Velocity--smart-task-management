@@ -17,6 +17,7 @@ export default function KanbanBoard({
   const [newTaskUrgency, setNewTaskUrgency] = useState('normal');
   const [quote, setQuote] = useState({ text: 'Loading...', author: '' });
 
+  const taskTitleRef = useRef(null);
   const [newTaskTags, setNewTaskTags] = useState([]);
   const [tagInput, setTagInput] = useState('');
   const [showTagDropdown, setShowTagDropdown] = useState(false);
@@ -167,6 +168,7 @@ export default function KanbanBoard({
     setNewTaskTags([]);
     setTagInput('');
     setShowTagDropdown(false);
+    if (taskTitleRef.current) taskTitleRef.current.style.height = 'auto';
   };
 
   const handleStatusChange = (task, newStatus) => {
@@ -330,10 +332,14 @@ export default function KanbanBoard({
     : tasks;
 
   const listTasks = [...displayTasks].sort((a, b) => {
-    const filterResult = sortComparator(a, b);
-    if (filterResult !== 0) return filterResult;
     const statusOrder = { 'To Do': 0, 'In Progress': 1, 'Done': 2 };
-    return (statusOrder[a.status] ?? 0) - (statusOrder[b.status] ?? 0);
+    const statusDiff = (statusOrder[a.status] ?? 0) - (statusOrder[b.status] ?? 0);
+    if (statusDiff !== 0) return statusDiff;
+    if (a.is_routine && !b.is_routine) return -1;
+    if (!a.is_routine && b.is_routine) return 1;
+    const filterResult = sortComparator(a, b);
+    if (filterResult !== 0 && !isNaN(filterResult)) return filterResult;
+    return 0;
   });
 
   // Shared edit/calendar props for subcomponents
@@ -349,28 +355,50 @@ export default function KanbanBoard({
           <h2 className="text-2xl font-extrabold text-slate-800 shrink-0">My Tasks</h2>
 
           <form onSubmit={handleSubmit} className="flex gap-2 ml-8 flex-1 max-w-4xl items-center">
-            <input
-              type="text"
-              placeholder="What needs to be done?"
-              className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
-              value={newTaskTitle}
-              onChange={(e) => setNewTaskTitle(e.target.value)}
-            />
+            <div className="relative flex-1 self-stretch">
+              <textarea
+                ref={taskTitleRef}
+                rows={1}
+                placeholder="What needs to be done?"
+                className="absolute top-0 left-0 right-0 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all resize-none overflow-hidden z-20"
+                style={{ minHeight: '42px' }}
+                value={newTaskTitle}
+                onChange={(e) => {
+                  setNewTaskTitle(e.target.value);
+                  e.target.style.height = 'auto';
+                  e.target.style.height = e.target.scrollHeight + 'px';
+                }}
+                onFocus={(e) => {
+                  e.target.style.height = 'auto';
+                  e.target.style.height = e.target.scrollHeight + 'px';
+                }}
+                onBlur={(e) => {
+                  e.target.style.height = 'auto';
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(e); }
+                }}
+              />
+            </div>
 
-            <TagPicker
-              newTaskTags={newTaskTags}
-              tagInput={tagInput}
-              setTagInput={setTagInput}
-              showTagDropdown={showTagDropdown}
-              setShowTagDropdown={setShowTagDropdown}
-              tagAreaRef={tagAreaRef}
-              addTag={addTag}
-              removeTag={removeTag}
-              handleTagKeyDown={handleTagKeyDown}
-              filteredSuggestions={filteredSuggestions}
-              allTags={allTags}
-              getDropdownStyle={getDropdownStyle}
-            />
+            <div className="relative self-stretch" style={{ minWidth: '130px', maxWidth: '200px' }}>
+              <div className="absolute top-0 left-0 right-0 z-20">
+                <TagPicker
+                  newTaskTags={newTaskTags}
+                  tagInput={tagInput}
+                  setTagInput={setTagInput}
+                  showTagDropdown={showTagDropdown}
+                  setShowTagDropdown={setShowTagDropdown}
+                  tagAreaRef={tagAreaRef}
+                  addTag={addTag}
+                  removeTag={removeTag}
+                  handleTagKeyDown={handleTagKeyDown}
+                  filteredSuggestions={filteredSuggestions}
+                  allTags={allTags}
+                  getDropdownStyle={getDropdownStyle}
+                />
+              </div>
+            </div>
 
             <input
               type="date"
@@ -381,11 +409,11 @@ export default function KanbanBoard({
             <select
               value={newTaskUrgency}
               onChange={(e) => setNewTaskUrgency(e.target.value)}
-              className="w-32 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all cursor-pointer"
+              className="w-11 px-1 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all cursor-pointer"
             >
-              <option value="normal">Normal 🟡</option>
-              <option value="high">High 🔴</option>
-              <option value="low">Low 🟢</option>
+              <option value="normal">🟡</option>
+              <option value="high">🔴</option>
+              <option value="low">🟢</option>
             </select>
             <button type="submit" className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl shadow-sm transition-all hover:shadow hover:-translate-y-0.5 whitespace-nowrap">
               + Add Task
@@ -404,13 +432,11 @@ export default function KanbanBoard({
                   {columns.map(status => {
                     let columnTasks = displayTasks.filter(t => t.status === status);
                     columnTasks = [...columnTasks].sort((a, b) => {
+                      if (a.is_routine && !b.is_routine) return -1;
+                      if (!a.is_routine && b.is_routine) return 1;
                       const r = sortComparator(a, b);
-                      if (r !== 0) return r;
-                      if (status === 'To Do') {
-                        if (a.is_routine && !b.is_routine) return -1;
-                        if (!a.is_routine && b.is_routine) return 1;
-                      }
-                      return b.id - a.id;
+                      if (r !== 0 && !isNaN(r)) return r;
+                      return 0;
                     });
 
                     return (
